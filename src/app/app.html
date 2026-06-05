@@ -1,0 +1,443 @@
+<div class="page-shell" tabindex="0" (keydown)="handleKeydown($event)">
+  <header class="topbar">
+    <div class="topbar__brand">
+      <a class="brand" href="#" aria-label="DevPortal SecurityData home">
+        <span class="brand__mark material-symbols-outlined">shield_lock</span>
+        <span class="brand__name">DevPortal SecurityData</span>
+      </a>
+    </div>
+
+    <label class="topbar__search" aria-label="Search documentation">
+      <span class="material-symbols-outlined search__icon">search</span>
+      <input
+        #searchInput
+        type="text"
+        placeholder="Search documentation... (Cmd+K)"
+        [value]="searchQuery()"
+        (input)="setSearchQuery(searchInput.value)"
+      />
+      <span class="search__hint">⌘K</span>
+    </label>
+
+    <div class="topbar__actions">
+      <label class="version-select">
+        <span>Version</span>
+        <select #versionSelect [value]="selectedVersion()" (change)="selectVersion(versionSelect.value)">
+          @for (version of versionOptions; track version) {
+            <option [value]="version">{{ version }}</option>
+          }
+        </select>
+      </label>
+
+      @if (isAuthenticated()) {
+        <div class="user-chip">
+          <div class="user-chip__avatar">{{ user.initials }}</div>
+          <div class="user-chip__meta">
+            <strong>{{ user.name }}</strong>
+            <button type="button" (click)="toggleSession()">Logout</button>
+          </div>
+        </div>
+      } @else {
+        <button type="button" class="login-button" (click)="openLoginModal()">Login</button>
+      }
+    </div>
+  </header>
+
+  <aside class="sidebar">
+    <div class="sidebar__header">
+      <span class="sidebar__eyebrow">Servicios</span>
+    </div>
+
+    <nav class="sidebar__nav" aria-label="Microservices catalog">
+      @if (visibleServices().length > 0) {
+        @for (service of visibleServices(); track service.id) {
+          <section class="service-group" [class.is-active]="isGroupActive(service.id)">
+            <button
+              type="button"
+              class="service-group__button"
+              [class.is-locked]="service.locked"
+              [attr.aria-expanded]="service.expanded"
+              [attr.aria-disabled]="service.locked && !isAuthenticated()"
+              (click)="toggleService(service.id)"
+            >
+              <span class="service-group__left">
+                <span class="material-symbols-outlined">{{ service.locked ? 'lock' : service.icon }}</span>
+                <span>{{ service.title }}</span>
+              </span>
+
+              @if (!service.locked) {
+                <span class="material-symbols-outlined service-group__chevron">
+                  {{ service.expanded ? 'expand_more' : 'chevron_right' }}
+                </span>
+              }
+            </button>
+
+            @if (service.locked && !isAuthenticated()) {
+              <div class="service-group__tooltip">Login required to access this documentation</div>
+            }
+
+            @if (service.expanded && service.endpoints.length > 0) {
+              <div class="service-group__items">
+                @for (endpoint of service.endpoints; track endpoint.id) {
+                  <a
+                    href="#overview"
+                    class="service-item"
+                    [class.is-active]="endpoint.active"
+                    (click)="$event.preventDefault(); selectEndpoint(endpoint.id)"
+                  >
+                    <span class="method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
+                    <span class="service-item__path">{{ endpoint.path }}</span>
+                  </a>
+                }
+              </div>
+            }
+          </section>
+        }
+      } @else {
+        <div class="empty-state">
+          <strong>No hay documentación cargada todavía.</strong>
+          <p>{{ serviceNotice() }}</p>
+        </div>
+      }
+    </nav>
+  </aside>
+
+  <main class="content" #contentScroll>
+    <div class="content__inner">
+      @if (activeDoc(); as doc) {
+        <nav class="breadcrumbs" aria-label="Breadcrumb">
+          <span>API Reference</span>
+          <span class="material-symbols-outlined">chevron_right</span>
+          <span>{{ activeServiceTitle() }}</span>
+          <span class="material-symbols-outlined">chevron_right</span>
+          <span class="breadcrumbs__current">{{ doc.title }}</span>
+        </nav>
+
+        <section class="hero" id="overview">
+          <div class="hero__head">
+            <span class="method method--{{ doc.method.toLowerCase() }} method--large">
+              {{ doc.method }}
+            </span>
+            <code class="hero__url">{{ endpointUrl(doc) }}</code>
+            <button type="button" class="icon-button" [attr.aria-label]="copyLabel()" (click)="copyExample()">
+              <span class="material-symbols-outlined">content_copy</span>
+            </button>
+          </div>
+
+          <h1>{{ doc.title }}</h1>
+          <p>{{ doc.summary }}</p>
+
+          <div class="hero__meta">
+            <span class="meta-pill">Version {{ doc.version }}</span>
+            @if (doc.private) {
+              <span class="meta-pill meta-pill--private">Private</span>
+            } @else {
+              <span class="meta-pill">Public</span>
+            }
+          </div>
+        </section>
+
+        @if (notice()) {
+          <section class="notice-banner" role="alert">
+            <span class="material-symbols-outlined">info</span>
+            <p>{{ notice() }}</p>
+            <button type="button" class="notice-banner__close" (click)="clearNotice()">Close</button>
+          </section>
+        }
+
+        <section class="section" id="parameters">
+          <h2>Parameters</h2>
+          @if (doc.parameters.length > 0) {
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Requirement</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (parameter of doc.parameters; track parameter.name) {
+                    <tr>
+                      <td class="mono accent">{{ parameter.name }}</td>
+                      <td><span class="chip">{{ parameter.type }}</span></td>
+                      <td>
+                        <span class="req" [class.req--required]="parameter.requirement === 'Required'">
+                          {{ parameter.requirement }}
+                        </span>
+                      </td>
+                      <td>{{ parameter.description }}</td>
+                      <td class="mono muted">{{ parameter.example || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty-state">This endpoint does not declare query parameters.</p>
+          }
+        </section>
+
+        <section class="section" id="headers">
+          <h2>Headers</h2>
+          @if (doc.headers.length > 0) {
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Value</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (header of doc.headers; track header.name) {
+                    <tr>
+                      <td class="mono accent">{{ header.name }}</td>
+                      <td class="mono">{{ header.value }}</td>
+                      <td>{{ header.description }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty-state">No custom headers are required for this endpoint.</p>
+          }
+        </section>
+
+        <section class="section" id="request-body">
+          <h2>Request Body</h2>
+          @if (doc.requestBody.length > 0) {
+            <div class="table-shell">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Type</th>
+                    <th>Requirement</th>
+                    <th>Description</th>
+                    <th>Example</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (field of doc.requestBody; track field.name) {
+                    <tr>
+                      <td class="mono accent">{{ field.name }}</td>
+                      <td><span class="chip">{{ field.type }}</span></td>
+                      <td>
+                        <span class="req" [class.req--required]="field.requirement === 'Required'">
+                          {{ field.requirement }}
+                        </span>
+                      </td>
+                      <td>{{ field.description }}</td>
+                      <td class="mono muted">{{ field.example || '—' }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else {
+            <p class="empty-state">No request body is required for this endpoint.</p>
+          }
+        </section>
+
+        <section class="section" id="responses">
+          <h2>Responses</h2>
+          <div class="response-grid">
+            @for (response of doc.responses; track response.status) {
+              <article class="response-card">
+                <div class="response-card__head">
+                  <span class="status status--ok">{{ response.status }}</span>
+                  <span>{{ response.label }}</span>
+                </div>
+                <pre><code>{{ response.body }}</code></pre>
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="section" id="errors">
+          <h2>Errors</h2>
+          <div class="table-shell">
+            <table>
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (error of doc.errors; track error.code) {
+                  <tr>
+                    <td class="mono accent">{{ error.code }}</td>
+                    <td>{{ error.description }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section" id="examples">
+          <h2>Examples</h2>
+          <div class="code-card">
+            <div class="code-card__header code-block-header">
+              <div class="code-card__dots" aria-hidden="true">
+                <span></span>
+                <span></span>
+                <span></span>
+              </div>
+              <span class="code-card__label">{{ doc.exampleLabel }}</span>
+              <span class="code-card__version">{{ doc.exampleVersion }}</span>
+              <button type="button" class="code-card__copy" (click)="copyExample()">
+                <span class="material-symbols-outlined">content_copy</span>
+                {{ copyLabel() }}
+              </button>
+            </div>
+
+            <div class="code-card__body">
+              <pre><code>{{ renderExampleCode(doc) }}</code></pre>
+            </div>
+          </div>
+
+          <div class="insight-grid">
+            <article class="insight-card">
+              <h3>Security</h3>
+              <p>
+                @if (doc.private) {
+                  Internal access only. Use a corporate token and an approved network.
+                } @else {
+                  Uses Bearer Token authentication. Ensure your token has the required scope.
+                }
+              </p>
+            </article>
+
+            <article class="insight-card">
+              <h3>Rate Limits</h3>
+              <p>This endpoint is limited to 100 requests per minute per API key.</p>
+            </article>
+          </div>
+        </section>
+      } @else {
+        <div class="content-empty">
+          <div class="content-empty__card">
+            <p class="content-empty__eyebrow">Backend Catalog</p>
+            <h1>{{ serviceNotice() }}</h1>
+            <p>
+              Esta vista ya no usa documentación mockeada. El portal espera los schemas publicados por
+              el backend en <code>{{ apiBaseUrl }}</code>.
+            </p>
+          </div>
+        </div>
+      }
+    </div>
+  </main>
+
+  <aside class="toc">
+    <div class="toc__inner">
+      <h2>On this page</h2>
+
+      @if (tocItems().length > 0) {
+        <nav aria-label="On this page">
+          @for (item of tocItems(); track item.id) {
+            <a
+              href="#"
+              [class.is-active]="activeSection() === item.id"
+              (click)="$event.preventDefault(); scrollTo(item.id)"
+            >
+              {{ item.label }}
+            </a>
+          }
+        </nav>
+      } @else {
+        <div class="toc__empty">
+          <p>No hay secciones para mostrar todavía.</p>
+        </div>
+      }
+
+      <div class="promo">
+        <div class="promo__image" role="img" aria-label="Explore Dashboard"></div>
+        <div class="promo__caption">Explore Dashboard</div>
+      </div>
+    </div>
+  </aside>
+
+  @if (showLoginModal()) {
+    <div
+      class="modal-backdrop"
+      role="presentation"
+      (click)="closeLoginModal()"
+      (keydown.escape)="closeLoginModal()"
+      tabindex="-1"
+    >
+      <section
+        class="login-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="login-title"
+        (click)="$event.stopPropagation()"
+      >
+        <div class="login-modal__header">
+          <div>
+            <p class="login-modal__eyebrow">Access Portal</p>
+            <h2 id="login-title">Sign in to access private documentation</h2>
+          </div>
+
+          <button type="button" class="icon-button" aria-label="Close login dialog" (click)="closeLoginModal()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <p class="login-modal__lead">
+          The portal keeps the same visual experience. Once you sign in, private services and
+          endpoints are unlocked.
+        </p>
+
+        <div class="login-modal__form">
+          <label class="field">
+            <span>Email</span>
+            <input
+              #emailInput
+              type="email"
+              autocomplete="email"
+              [value]="loginEmail()"
+              (input)="setLoginEmail(emailInput.value)"
+              placeholder="name@company.com"
+            />
+          </label>
+
+          <label class="field">
+            <span>Password</span>
+            <div class="password-field">
+              <input
+                #passwordInput
+                [type]="passwordVisible() ? 'text' : 'password'"
+                autocomplete="current-password"
+                [value]="loginPassword()"
+                (input)="setLoginPassword(passwordInput.value)"
+                placeholder="Enter your password"
+              />
+              <button
+                type="button"
+                class="password-toggle"
+                [attr.aria-pressed]="passwordVisible()"
+                (click)="togglePasswordVisibility()"
+              >
+                <span class="material-symbols-outlined">
+                  {{ passwordVisible() ? 'visibility_off' : 'visibility' }}
+                </span>
+                <span>{{ passwordVisible() ? 'Hide' : 'Show' }}</span>
+              </button>
+            </div>
+          </label>
+
+          <button type="button" class="login-modal__submit" (click)="submitLogin()">Sign in</button>
+        </div>
+      </section>
+    </div>
+  }
+</div>
