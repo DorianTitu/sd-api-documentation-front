@@ -1,40 +1,51 @@
-<div class="page-shell" tabindex="0" (keydown)="handleKeydown($event)">
+<div
+  class="page-shell"
+  tabindex="0"
+  (keydown)="handleKeydown($event)"
+>
   <header class="topbar">
     <div class="topbar__brand">
-      <a class="brand" href="#" aria-label="DevPortal SecurityData home">
+      <a class="brand" href="#" aria-label="SecurityData portal home">
         <span class="brand__mark material-symbols-outlined">shield_lock</span>
-        <span class="brand__name">DevPortal SecurityData</span>
+        <span class="brand__name">SecurityData Portal</span>
       </a>
     </div>
 
-    <label class="topbar__search" aria-label="Search documentation">
-      <span class="material-symbols-outlined search__icon">search</span>
-      <input
-        #searchInput
-        type="text"
-        placeholder="Search documentation... (Cmd+K)"
-        [value]="searchQuery()"
-        (input)="setSearchQuery(searchInput.value)"
-      />
-      <span class="search__hint">⌘K</span>
-    </label>
+    @if (!isAdmin()) {
+      <label class="topbar__search" aria-label="Search documentation">
+        <span class="material-symbols-outlined search__icon">search</span>
+        <input
+          #searchInput
+          type="text"
+          placeholder="Buscar documentación... (Cmd+K)"
+          [value]="searchQuery()"
+          (input)="setSearchQuery(searchInput.value)"
+        />
+        <span class="search__hint">⌘K</span>
+      </label>
+    } @else {
+      <div class="topbar__spacer"></div>
+    }
 
     <div class="topbar__actions">
-      <label class="version-select">
-        <span>Version</span>
-        <select #versionSelect [value]="selectedVersion()" (change)="selectVersion(versionSelect.value)">
-          @for (version of versionOptions; track version) {
-            <option [value]="version">{{ version }}</option>
-          }
-        </select>
-      </label>
+      @if (!isAdmin()) {
+        <label class="version-select">
+          <span>Versión</span>
+          <select #versionSelect [value]="selectedVersion()" (change)="selectVersion(versionSelect.value)">
+            @for (version of versionOptions; track version) {
+              <option [value]="version">{{ version }}</option>
+            }
+          </select>
+        </label>
+      }
 
       @if (isAuthenticated()) {
         <div class="user-chip">
-          <div class="user-chip__avatar">{{ user.initials }}</div>
+          <div class="user-chip__avatar">{{ userInitials() }}</div>
           <div class="user-chip__meta">
-            <strong>{{ user.name }}</strong>
-            <button type="button" (click)="toggleSession()">Logout</button>
+            <strong>{{ userName() }}</strong>
+            <span>{{ userRoleLabel() }}</span>
+            <button type="button" (click)="toggleSession()">Salir</button>
           </div>
         </div>
       } @else {
@@ -43,71 +54,83 @@
     </div>
   </header>
 
-  <aside class="sidebar">
-    <div class="sidebar__header">
-      <span class="sidebar__eyebrow">Servicios</span>
-    </div>
+  @if (isAdmin()) {
+    <main class="admin-stage">
+      <section class="admin-stage__card">
+        <p class="content-empty__eyebrow">Panel Administrativo</p>
+        <h1>Hola administrador</h1>
+        <p>
+          Por ahora este panel se mantiene en blanco. Más adelante vamos a montar aquí la
+          experiencia de administración.
+        </p>
+      </section>
+    </main>
+  } @else {
+    <aside class="sidebar">
+      <div class="sidebar__header">
+        <span class="sidebar__eyebrow">Servicios</span>
+      </div>
 
-    <nav class="sidebar__nav" aria-label="Microservices catalog">
-      @if (visibleServices().length > 0) {
-        @for (service of visibleServices(); track service.id) {
-          <section class="service-group" [class.is-active]="isGroupActive(service.id)">
-            <button
-              type="button"
-              class="service-group__button"
-              [class.is-locked]="service.locked"
-              [attr.aria-expanded]="service.expanded"
-              [attr.aria-disabled]="service.locked && !isAuthenticated()"
-              (click)="toggleService(service.id)"
-            >
-              <span class="service-group__left">
-                <span class="material-symbols-outlined">{{ service.locked ? 'lock' : service.icon }}</span>
-                <span>{{ service.title }}</span>
-              </span>
-
-              @if (!service.locked) {
-                <span class="material-symbols-outlined service-group__chevron">
-                  {{ service.expanded ? 'expand_more' : 'chevron_right' }}
+      <nav class="sidebar__nav" aria-label="Microservices catalog">
+        @if (visibleServices().length > 0) {
+          @for (service of visibleServices(); track service.id) {
+            <section class="service-group" [class.is-active]="isGroupActive(service.id)">
+              <button
+                type="button"
+                class="service-group__button"
+                [class.is-locked]="service.locked"
+                [attr.aria-expanded]="service.expanded"
+                [attr.aria-disabled]="service.locked && !isAuthenticated()"
+                (click)="toggleService(service.id)"
+              >
+                <span class="service-group__left">
+                  <span class="material-symbols-outlined">{{ service.locked ? 'lock' : service.icon }}</span>
+                  <span>{{ service.title }}</span>
                 </span>
-              }
-            </button>
 
-            @if (service.locked && !isAuthenticated()) {
-              <div class="service-group__tooltip">Login required to access this documentation</div>
-            }
-
-            @if (service.expanded && service.endpoints.length > 0) {
-              <div class="service-group__items">
-                @for (endpoint of service.endpoints; track endpoint.id) {
-                  <a
-                    href="#overview"
-                    class="service-item"
-                    [class.is-active]="endpoint.active"
-                    (click)="$event.preventDefault(); selectEndpoint(endpoint.id)"
-                  >
-                    <span class="method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
-                    <span class="service-item__path">{{ endpoint.path }}</span>
-                  </a>
+                @if (!service.locked) {
+                  <span class="material-symbols-outlined service-group__chevron">
+                    {{ service.expanded ? 'expand_more' : 'chevron_right' }}
+                  </span>
                 }
-              </div>
-            }
-          </section>
-        }
-      } @else {
-        <div class="empty-state">
-          <strong>No hay documentación cargada todavía.</strong>
-          <p>{{ serviceNotice() }}</p>
-        </div>
-      }
-    </nav>
-  </aside>
+              </button>
 
-  <main class="content" #contentScroll>
-    <div class="content__inner">
-      @if (activeDoc(); as doc) {
-        <nav class="breadcrumbs" aria-label="Breadcrumb">
-          <span>API Reference</span>
-          <span class="material-symbols-outlined">chevron_right</span>
+              @if (service.locked && !isAuthenticated()) {
+                <div class="service-group__tooltip">Debes iniciar sesión para acceder a esta documentación.</div>
+              }
+
+              @if (service.expanded && service.endpoints.length > 0) {
+                <div class="service-group__items">
+                  @for (endpoint of service.endpoints; track endpoint.id) {
+                    <a
+                      href="#overview"
+                      class="service-item"
+                      [class.is-active]="endpoint.active"
+                      (click)="$event.preventDefault(); selectEndpoint(endpoint.id)"
+                    >
+                      <span class="method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
+                      <span class="service-item__path">{{ endpoint.path }}</span>
+                    </a>
+                  }
+                </div>
+              }
+            </section>
+          }
+        } @else {
+          <div class="empty-state">
+            <strong>No hay esquemas disponibles.</strong>
+            <p>{{ serviceNotice() }}</p>
+          </div>
+        }
+      </nav>
+    </aside>
+
+    <main class="content" #contentScroll>
+      <div class="content__inner">
+        @if (activeDoc(); as doc) {
+          <nav class="breadcrumbs" aria-label="Breadcrumb">
+            <span>API Reference</span>
+            <span class="material-symbols-outlined">chevron_right</span>
           <span>{{ activeServiceTitle() }}</span>
           <span class="material-symbols-outlined">chevron_right</span>
           <span class="breadcrumbs__current">{{ doc.title }}</span>
@@ -128,11 +151,11 @@
           <p>{{ doc.summary }}</p>
 
           <div class="hero__meta">
-            <span class="meta-pill">Version {{ doc.version }}</span>
+            <span class="meta-pill">Versión {{ doc.version }}</span>
             @if (doc.private) {
-              <span class="meta-pill meta-pill--private">Private</span>
+              <span class="meta-pill meta-pill--private">Privado</span>
             } @else {
-              <span class="meta-pill">Public</span>
+              <span class="meta-pill">Público</span>
             }
           </div>
         </section>
@@ -141,7 +164,7 @@
           <section class="notice-banner" role="alert">
             <span class="material-symbols-outlined">info</span>
             <p>{{ notice() }}</p>
-            <button type="button" class="notice-banner__close" (click)="clearNotice()">Close</button>
+            <button type="button" class="notice-banner__close" (click)="clearNotice()">Cerrar</button>
           </section>
         }
 
@@ -177,7 +200,7 @@
               </table>
             </div>
           } @else {
-            <p class="empty-state">This endpoint does not declare query parameters.</p>
+            <p class="empty-state">Este endpoint no declara parámetros de consulta.</p>
           }
         </section>
 
@@ -205,7 +228,7 @@
               </table>
             </div>
           } @else {
-            <p class="empty-state">No custom headers are required for this endpoint.</p>
+            <p class="empty-state">No se requieren headers personalizados para este endpoint.</p>
           }
         </section>
 
@@ -241,7 +264,7 @@
               </table>
             </div>
           } @else {
-            <p class="empty-state">No request body is required for this endpoint.</p>
+            <p class="empty-state">No se requiere request body para este endpoint.</p>
           }
         </section>
 
@@ -322,49 +345,50 @@
             </article>
           </div>
         </section>
-      } @else {
-        <div class="content-empty">
-          <div class="content-empty__card">
-            <p class="content-empty__eyebrow">Backend Catalog</p>
-            <h1>{{ serviceNotice() }}</h1>
-            <p>
-              Esta vista ya no usa documentación mockeada. El portal espera los schemas publicados por
-              el backend en <code>{{ apiBaseUrl }}</code>.
-            </p>
+        } @else {
+          <div class="content-empty">
+            <div class="content-empty__card">
+              <p class="content-empty__eyebrow">Portal de APIs</p>
+              <h1>{{ serviceNotice() }}</h1>
+              <p>
+                El portal siempre queda accesible. Si no has iniciado sesión, solo verás los
+                documentos públicos. Inicia sesión para desbloquear los esquemas privados.
+              </p>
+            </div>
           </div>
-        </div>
-      }
-    </div>
-  </main>
-
-  <aside class="toc">
-    <div class="toc__inner">
-      <h2>On this page</h2>
-
-      @if (tocItems().length > 0) {
-        <nav aria-label="On this page">
-          @for (item of tocItems(); track item.id) {
-            <a
-              href="#"
-              [class.is-active]="activeSection() === item.id"
-              (click)="$event.preventDefault(); scrollTo(item.id)"
-            >
-              {{ item.label }}
-            </a>
-          }
-        </nav>
-      } @else {
-        <div class="toc__empty">
-          <p>No hay secciones para mostrar todavía.</p>
-        </div>
-      }
-
-      <div class="promo">
-        <div class="promo__image" role="img" aria-label="Explore Dashboard"></div>
-        <div class="promo__caption">Explore Dashboard</div>
+        }
       </div>
-    </div>
-  </aside>
+    </main>
+
+    <aside class="toc">
+      <div class="toc__inner">
+        <h2>On this page</h2>
+
+        @if (tocItems().length > 0) {
+          <nav aria-label="On this page">
+            @for (item of tocItems(); track item.id) {
+              <a
+                href="#"
+                [class.is-active]="activeSection() === item.id"
+                (click)="$event.preventDefault(); scrollTo(item.id)"
+              >
+                {{ item.label }}
+              </a>
+            }
+          </nav>
+        } @else {
+          <div class="toc__empty">
+            <p>No hay secciones para mostrar todavía.</p>
+          </div>
+        }
+
+        <div class="promo">
+          <div class="promo__image" role="img" aria-label="Explore Dashboard"></div>
+          <div class="promo__caption">Explore Dashboard</div>
+        </div>
+      </div>
+    </aside>
+  }
 
   @if (showLoginModal()) {
     <div
@@ -383,35 +407,42 @@
       >
         <div class="login-modal__header">
           <div>
-            <p class="login-modal__eyebrow">Access Portal</p>
-            <h2 id="login-title">Sign in to access private documentation</h2>
+            <p class="login-modal__eyebrow">Acceso al portal</p>
+            <h2 id="login-title">Iniciar sesión</h2>
           </div>
 
-          <button type="button" class="icon-button" aria-label="Close login dialog" (click)="closeLoginModal()">
+          <button type="button" class="icon-button" aria-label="Cerrar login" (click)="closeLoginModal()">
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
 
         <p class="login-modal__lead">
-          The portal keeps the same visual experience. Once you sign in, private services and
-          endpoints are unlocked.
+          El backend decide si el acceso corresponde a administrador o desarrollador. El front
+          ajusta la experiencia según el rol recibido.
         </p>
+
+        @if (loginError()) {
+          <div class="login-modal__error" role="alert">
+            <span class="material-symbols-outlined">warning</span>
+            <p>{{ loginError() }}</p>
+          </div>
+        }
 
         <div class="login-modal__form">
           <label class="field">
-            <span>Email</span>
+            <span>Correo</span>
             <input
               #emailInput
               type="email"
               autocomplete="email"
               [value]="loginEmail()"
               (input)="setLoginEmail(emailInput.value)"
-              placeholder="name@company.com"
+              placeholder="usuario@correo.com"
             />
           </label>
 
           <label class="field">
-            <span>Password</span>
+            <span>Clave</span>
             <div class="password-field">
               <input
                 #passwordInput
@@ -419,7 +450,7 @@
                 autocomplete="current-password"
                 [value]="loginPassword()"
                 (input)="setLoginPassword(passwordInput.value)"
-                placeholder="Enter your password"
+                placeholder="Ingresa tu clave"
               />
               <button
                 type="button"
@@ -430,12 +461,19 @@
                 <span class="material-symbols-outlined">
                   {{ passwordVisible() ? 'visibility_off' : 'visibility' }}
                 </span>
-                <span>{{ passwordVisible() ? 'Hide' : 'Show' }}</span>
+                <span>{{ passwordVisible() ? 'Ocultar' : 'Ver' }}</span>
               </button>
             </div>
           </label>
 
-          <button type="button" class="login-modal__submit" (click)="submitLogin()">Sign in</button>
+          <button
+            type="button"
+            class="login-modal__submit"
+            [disabled]="loginLoading()"
+            (click)="submitLogin()"
+          >
+            {{ loginLoading() ? 'Validando...' : 'Ingresar' }}
+          </button>
         </div>
       </section>
     </div>

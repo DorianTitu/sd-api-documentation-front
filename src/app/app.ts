@@ -12,12 +12,35 @@ type SectionId =
   | 'responses'
   | 'errors'
   | 'examples';
+type UserRole = 'ADMINISTRADOR' | 'DESARROLLADOR';
 
 interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
   timestamp: string;
+}
+
+interface ErrorApiResponse {
+  success: false;
+  message: string;
+  errorCode?: string;
+  details?: string[];
+  timestamp?: string;
+}
+
+interface LoginData {
+  accessToken: string;
+  tokenType: string;
+  expiresIn: number;
+  usuario: AuthUser;
+}
+
+interface AuthUser {
+  id: number;
+  correo: string;
+  nombre: string;
+  tipoUsuario: UserRole;
 }
 
 interface DocumentedSchema {
@@ -133,6 +156,10 @@ interface ServiceGroup {
   endpoints: ServiceEndpointRef[];
 }
 
+const STORAGE_TOKEN_KEY = 'sd.portal.token';
+const STORAGE_TOKEN_TYPE_KEY = 'sd.portal.tokenType';
+const STORAGE_USER_KEY = 'sd.portal.user';
+
 @Component({
   selector: 'app-root',
   templateUrl: './app.html',
@@ -148,10 +175,14 @@ export class App {
   protected readonly selectedVersion = signal<ApiVersion>('v2');
   protected readonly isAuthenticated = signal(false);
   protected readonly authToken = signal('');
+  protected readonly currentUser = signal<AuthUser | null>(null);
+  protected readonly currentRole = signal<UserRole | null>(null);
   protected readonly showLoginModal = signal(false);
   protected readonly passwordVisible = signal(false);
-  protected readonly loginEmail = signal('alex.miller@devportal.com');
+  protected readonly loginEmail = signal('');
   protected readonly loginPassword = signal('');
+  protected readonly loginLoading = signal(false);
+  protected readonly loginError = signal<string | null>(null);
   protected readonly activeEndpointId = signal('');
   protected readonly openServiceIds = signal<string[]>([]);
   protected readonly notice = signal<string | null>(null);
@@ -160,10 +191,21 @@ export class App {
   protected readonly services = signal<ServiceGroup[]>([]);
   protected readonly endpointDocs = signal<EndpointDoc[]>([]);
 
-  protected readonly user = {
-    name: 'Alex Miller',
-    initials: 'AM',
-  } as const;
+  protected readonly userInitials = computed(() => {
+    const name = this.currentUser()?.nombre ?? 'Usuario';
+    const initials = name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0]?.toUpperCase() ?? '')
+      .join('');
+    return initials || 'SD';
+  });
+
+  protected readonly userName = computed(() => this.currentUser()?.nombre ?? 'Usuario');
+  protected readonly userRoleLabel = computed(() => this.currentRole() ?? '');
+  protected readonly isAdmin = computed(() => this.currentRole() === 'ADMINISTRADOR');
+  protected readonly isDeveloper = computed(() => this.currentRole() === 'DESARROLLADOR');
 
   protected versionOptions: ApiVersion[] = ['v2'];
 
@@ -172,6 +214,7 @@ export class App {
     if (!endpointId) {
       return null;
     }
+
     return this.endpointDocs().find((doc) => doc.id === endpointId) ?? null;
   });
 
@@ -180,6 +223,7 @@ export class App {
     if (!currentDoc) {
       return '';
     }
+
     return this.services().find((service) => service.id === currentDoc.serviceId)?.title ?? '';
   });
 
@@ -211,6 +255,7 @@ export class App {
             if (!query) {
               return true;
             }
+
             const doc = this.getDocById(endpoint.id);
             return doc ? this.docMatches(doc, query) : false;
           })
@@ -228,25 +273,13 @@ export class App {
       return [] as Array<{ id: SectionId; label: string }>;
     }
 
-    const sections: Array<{ id: SectionId; label: string }> = [
-      { id: 'overview', label: 'Overview' },
-      { id: 'parameters', label: 'Parameters' },
-      { id: 'headers', label: 'Headers' },
-    ];
-
-    if (doc.requestBody.length > 0 || doc.private) {
-      sections.push({ id: 'request-body', label: 'Request Body' });
-    }
-
-    sections.push({ id: 'responses', label: 'Responses' });
-    sections.push({ id: 'errors', label: 'Errors' });
-    sections.push({ id: 'examples', label: 'Examples' });
-    return sections;
+    return this.docSections(doc);
   });
 
   protected readonly copyLabel = computed(() => this.copyState());
 
   constructor() {
+    this.restoreSession();
     void this.refreshCatalog();
 
     effect(() => {
@@ -254,6 +287,7 @@ export class App {
         service.endpoints.map((endpoint) => endpoint.id),
       );
       const current = this.activeEndpointId();
+
       if (visibleIds.length > 0 && !visibleIds.includes(current)) {
         this.activeEndpointId.set(visibleIds[0]);
       }
@@ -265,7 +299,7 @@ export class App {
   }
 
   protected openLoginModal(): void {
-    this.notice.set(null);
+    this.loginError.set(null);
     this.showLoginModal.set(true);
     this.passwordVisible.set(false);
   }
@@ -288,15 +322,76 @@ export class App {
   }
 
   protected async submitLogin(): Promise<void> {
-    this.authToken.set(this.loginPassword());
-    this.isAuthenticated.set(true);
-    this.closeLoginModal();
-    await this.refreshCatalog();
+    const correo = this.loginEmail().trim();
+    const clave = this.loginPassword();
+
+    if (!correo || !clave) {
+      this.loginError.set('Ingresa tu correo y tu clave para continuar.');
+      return;
+    }
+
+    this.loginLoading.set(true);
+    this.loginError.set(null);
+
+    try {
+      const response = await fetch(`${this.apiBaseUrl}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ correo, clave }),
+      });
+
+      const payload = (await response.json().catch(() => null)) as
+        | ApiResponse<LoginData>
+        | ErrorApiResponse
+        | null;
+
+      if (!response.ok || !payload || !('success' in payload) || !payload.success) {
+        const errorMessage =
+          payload && 'message' in payload && payload.message
+            ? payload.message
+            : 'No fue posible iniciar sesión.';
+        const details =
+          payload && 'details' in payload && Array.isArray(payload.details) && payload.details.length > 0
+            ? ` ${payload.details[0]}`
+            : '';
+        throw new Error(`${errorMessage}${details}`.trim());
+      }
+
+      const data = payload.data;
+      if (!data?.accessToken || !data.usuario) {
+        throw new Error('La respuesta de autenticación no contiene un token válido.');
+      }
+
+      this.persistSession(data.accessToken, data.tokenType, data.usuario);
+      this.currentUser.set(data.usuario);
+      this.currentRole.set(data.usuario.tipoUsuario);
+      this.authToken.set(data.accessToken);
+      this.isAuthenticated.set(true);
+      this.closeLoginModal();
+      this.searchQuery.set('');
+      this.notice.set(null);
+
+      if (data.usuario.tipoUsuario === 'DESARROLLADOR') {
+        await this.refreshCatalog();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'No fue posible iniciar sesión.';
+      this.loginError.set(message);
+      this.notice.set(message);
+    } finally {
+      this.loginLoading.set(false);
+    }
   }
 
   protected async toggleSession(): Promise<void> {
     this.notice.set(null);
+    this.clearStoredSession();
     this.authToken.set('');
+    this.currentUser.set(null);
+    this.currentRole.set(null);
     this.isAuthenticated.set(false);
     this.closeLoginModal();
     await this.refreshCatalog();
@@ -399,14 +494,76 @@ export class App {
     return sections;
   }
 
-  protected hasDocumentation(): boolean {
-    return this.endpointDocs().length > 0;
+  protected serviceNotice(): string {
+    if (this.isAuthenticated()) {
+      return this.schemas().length > 0
+        ? 'Documentación cargada desde el backend.'
+        : `Conecta el backend en ${this.apiBaseUrl} para cargar la documentación.`;
+    }
+
+    return this.schemas().length > 0
+      ? 'Explora la documentación pública. Inicia sesión para desbloquear los esquemas privados.'
+      : `Conecta el backend en ${this.apiBaseUrl} para cargar la documentación pública.`;
   }
 
-  protected serviceNotice(): string {
-    return this.schemas().length > 0
-      ? 'Documentación cargada desde el backend.'
-      : 'Conecta el backend en http://localhost:8080 para cargar la documentación.';
+  protected openDeveloperLogin(): void {
+    this.openLoginModal();
+  }
+
+  private restoreSession(): void {
+    try {
+      const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+      const tokenType = localStorage.getItem(STORAGE_TOKEN_TYPE_KEY);
+      const userRaw = localStorage.getItem(STORAGE_USER_KEY);
+
+      if (!token || !userRaw) {
+        this.showLoginModal.set(false);
+        return;
+      }
+
+      const user = JSON.parse(userRaw) as AuthUser | null;
+      if (!user?.tipoUsuario) {
+        this.clearStoredSession();
+        this.showLoginModal.set(true);
+        return;
+      }
+
+      this.authToken.set(token);
+      this.currentUser.set(user);
+      this.currentRole.set(user.tipoUsuario);
+      this.isAuthenticated.set(true);
+      this.showLoginModal.set(false);
+      this.loginEmail.set(user.correo);
+      if (tokenType) {
+        void tokenType;
+      }
+    } catch {
+      this.clearStoredSession();
+      this.clearCatalog();
+      this.showLoginModal.set(false);
+    }
+  }
+
+  private persistSession(token: string, tokenType: string, user: AuthUser): void {
+    localStorage.setItem(STORAGE_TOKEN_KEY, token);
+    localStorage.setItem(STORAGE_TOKEN_TYPE_KEY, tokenType || 'Bearer');
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+  }
+
+  private clearStoredSession(): void {
+    localStorage.removeItem(STORAGE_TOKEN_KEY);
+    localStorage.removeItem(STORAGE_TOKEN_TYPE_KEY);
+    localStorage.removeItem(STORAGE_USER_KEY);
+  }
+
+  private clearCatalog(): void {
+    this.schemas.set([]);
+    this.services.set([]);
+    this.endpointDocs.set([]);
+    this.activeEndpointId.set('');
+    this.openServiceIds.set([]);
+    this.versionOptions = ['v2'];
+    this.selectedVersion.set('v2');
   }
 
   private normalize(value: string): string {
@@ -439,6 +596,7 @@ export class App {
       const response = await this.requestJson<ApiResponse<DocumentedSchema[]>>('/schemas');
       const schemas = response.data ?? [];
       this.schemas.set(schemas);
+
       const versions = Array.from(new Set(schemas.map((schema) => schema.version))).sort();
       this.versionOptions = versions.length > 0 ? versions : ['v2'];
 
@@ -480,16 +638,15 @@ export class App {
         this.activeEndpointId.set(nextActive.id);
 
         const openServices = new Set<string>();
-        const activeDoc = nextActive;
         mappedServices.forEach((service) => {
-          if (service.endpoints.some((endpoint) => endpoint.id === activeDoc.id)) {
+          if (service.endpoints.some((endpoint) => endpoint.id === nextActive.id)) {
             openServices.add(service.id);
           }
         });
         this.openServiceIds.set(Array.from(openServices));
 
         if (!this.selectedVersion() || !this.versionOptions.includes(this.selectedVersion())) {
-          this.selectedVersion.set(activeDoc.version);
+          this.selectedVersion.set(nextActive.version);
         }
       } else {
         this.activeEndpointId.set('');
@@ -497,13 +654,25 @@ export class App {
       }
 
       this.notice.set(null);
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : '';
+      const unauthorized = /401|403|unauthorized|forbidden/i.test(message);
+
+      if (unauthorized) {
+        this.clearStoredSession();
+        this.authToken.set('');
+        this.currentUser.set(null);
+        this.currentRole.set(null);
+        this.isAuthenticated.set(false);
+        this.loginError.set('Tu sesión expiró. Vuelve a iniciar sesión.');
+      }
+
       this.schemas.set([]);
       this.services.set([]);
       this.endpointDocs.set([]);
       this.activeEndpointId.set('');
       this.openServiceIds.set([]);
-      this.notice.set('No se pudo cargar la documentación desde http://localhost:8080.');
+      this.notice.set('No se pudo cargar la documentación desde el backend.');
     }
   }
 
@@ -514,7 +683,7 @@ export class App {
     if (requiresAuth) {
       headers.push({
         name: 'Authorization',
-        value: 'Bearer YOUR_TOKEN',
+        value: 'Bearer TOKEN_AQUI',
         description: 'Bearer token required to access this schema.',
       });
     }
@@ -565,6 +734,7 @@ export class App {
     }));
 
     const errors: ErrorRow[] = [
+      { code: '401', description: 'Authentication is required to access this resource.' },
       { code: '403', description: 'You do not have access to this schema documentation.' },
       { code: '404', description: 'Schema or endpoint not found.' },
       { code: '500', description: 'The backend failed to resolve the documentation payload.' },
