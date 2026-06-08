@@ -1,0 +1,57 @@
+<section class="section">
+  <h2>Access Management</h2>
+  <div class="admin-split">
+    <section class="panel-card">
+      <div class="panel-card__head">
+        <div>
+          <p class="content-empty__eyebrow">Assign access</p>
+          <h3>Private schema access</h3>
+        </div>
+      </div>
+      <div class="panel-form">
+        <label class="field">
+          <span>Schema</span>
+          <select [value]="vm.adminAccessSchemaId || vm.selectedSchemaId" (change)="vm.onSchemaChange($any($event.target).value)">
+            @for (schema of vm.schemas; track schema.id) {
+              <option [value]="schema.id">{{ schema.title }} ({{ schema.visibility }})</option>
+            }
+          </select>
+        </label>
+        <label class="field">
+          <span>Developer User ID</span>
+          <input [value]="vm.adminAccessDeveloperUserId" (input)="vm.updateDeveloperUserId($any($event.target).value)" placeholder="3" />
+        </label>
+        <button type="button" class="login-button" [disabled]="vm.loading()" (click)="vm.grantAccess()">Grant access</button>
+      </div>
+    </section>
+
+    <div class="table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Developer</th>
+            <th>Correo</th>
+            <th>User ID</th>
+            <th>Assigned</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (access of vm.filteredAccesses; track access.developerUserId) {
+            <tr class="data-table-row">
+              <td>{{ access.developerName || access.nombre || '—' }}</td>
+              <td class="mono muted">{{ access.developerCorreo || access.correo || '—' }}</td>
+              <td class="mono">{{ access.developerUserId }}</td>
+              <td class="mono muted">{{ access.assignedAt || access.grantedAt || '—' }}</td>
+              <td>
+                <button type="button" class="icon-button" (click)="vm.revokeAccess(access.developerUserId)">
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

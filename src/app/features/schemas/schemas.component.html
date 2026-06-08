@@ -1,0 +1,262 @@
+<section class="section admin-schema-page">
+  <div class="admin-schema-header">
+    <div>
+      <p class="content-empty__eyebrow">Schemas Management</p>
+      <h2>Schemas</h2>
+      <p>Configure and monitor your API definitions and service schemas.</p>
+    </div>
+
+    <div class="admin-schema-header__actions">
+      <button type="button" class="login-button" (click)="vm.startCreateSchema()">Import New Schema</button>
+      <button type="button" class="login-button login-button--secondary" (click)="vm.loadAdminWorkspace()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="admin-schema-toolbar">
+    <div class="admin-schema-toolbar__group">
+      <span class="admin-schema-toolbar__label">Visibility:</span>
+      <div class="admin-schema-toolbar__chips">
+        <button
+          type="button"
+          class="admin-schema-chip"
+          [class.is-active]="vm.schemaVisibilityFilter() === 'ALL'"
+          (click)="vm.setVisibilityFilter('ALL')"
+        >
+          All
+        </button>
+        <button
+          type="button"
+          class="admin-schema-chip"
+          [class.is-active]="vm.schemaVisibilityFilter() === 'PUBLICO'"
+          (click)="vm.setVisibilityFilter('PUBLICO')"
+        >
+          Public
+        </button>
+        <button
+          type="button"
+          class="admin-schema-chip"
+          [class.is-active]="vm.schemaVisibilityFilter() === 'PRIVADO'"
+          (click)="vm.setVisibilityFilter('PRIVADO')"
+        >
+          Private
+        </button>
+      </div>
+    </div>
+
+    <div class="admin-schema-toolbar__group admin-schema-toolbar__group--version">
+      <span class="admin-schema-toolbar__label">Version:</span>
+      <select [value]="vm.schemaVersionFilter()" (change)="vm.setVersionFilter($any($event.target).value)">
+        <option value="ALL">All Versions</option>
+        @for (version of vm.schemaVersionOptions; track version) {
+          <option [value]="version">{{ version }}</option>
+        }
+      </select>
+    </div>
+
+    <button type="button" class="admin-schema-toolbar__link" (click)="vm.setVisibilityFilter('ALL')">
+      Reset filters
+    </button>
+  </div>
+
+  <div class="admin-schema-layout">
+    <section class="table-shell admin-schema-table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Version</th>
+            <th>Visibility</th>
+            <th>Source URL</th>
+            <th class="admin-table-center">Endpoints</th>
+            <th>Last Update</th>
+            <th class="admin-table-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (vm.filteredSchemas.length > 0) {
+            @for (schema of vm.filteredSchemas; track schema.id) {
+              <tr
+                class="data-table-row admin-schema-row"
+                [class.is-active]="vm.selectedSchema?.id === schema.id"
+                (click)="vm.selectSchema(schema.id)"
+              >
+                <td>
+                  <div class="admin-schema-title">
+                    <span class="material-symbols-outlined admin-schema-title__icon">
+                      {{ schema.visibility === 'PRIVADO' ? 'lock' : 'schema' }}
+                    </span>
+                    <div>
+                      <strong>{{ schema.title }}</strong>
+                      <span>{{ schema.description || 'No description provided.' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td class="mono text-on-surface-variant">{{ schema.version }}</td>
+                <td>
+                  <span class="admin-schema-badge" [class.admin-schema-badge--private]="schema.visibility === 'PRIVADO'">
+                    {{ schema.visibility === 'PRIVADO' ? 'Private' : 'Public' }}
+                  </span>
+                </td>
+                <td>
+                  <span class="mono admin-schema-url">{{ schema.sourceUrl || '—' }}</span>
+                </td>
+                <td class="admin-table-center">
+                  <strong class="admin-schema-count">{{ vm.schemaCountById(schema.id) }}</strong>
+                </td>
+                <td class="text-on-surface-variant">{{ vm.formatDate(schema.updatedAt || schema.createdAt) }}</td>
+                <td class="admin-table-actions">
+                  <div class="admin-row-actions">
+                    <button type="button" class="icon-button" title="View" (click)="$event.stopPropagation(); vm.selectSchema(schema.id)">
+                      <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                    <button type="button" class="icon-button" title="Refresh" (click)="$event.stopPropagation(); vm.loadAdminWorkspace()">
+                      <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                    <button type="button" class="icon-button" title="Delete" (click)="$event.stopPropagation(); vm.deleteSchema(schema.id)">
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @else {
+            <tr>
+              <td colspan="7">
+                <div class="empty-state empty-state--table">
+                  <strong>No schemas found.</strong>
+                  <p>Try another filter or import a new schema.</p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <aside class="admin-schema-side">
+      <section class="panel-card admin-schema-detail">
+        <div class="panel-card__head">
+          <div>
+            <p class="content-empty__eyebrow">Contextual Details</p>
+            <h3>{{ vm.selectedSchema?.title || 'Select a schema' }}</h3>
+          </div>
+          @if (vm.selectedSchema; as schema) {
+            <span class="admin-schema-badge" [class.admin-schema-badge--private]="schema.visibility === 'PRIVADO'">
+              {{ schema.visibility === 'PRIVADO' ? 'Private' : 'Public' }}
+            </span>
+          }
+        </div>
+
+        @if (vm.selectedSchema; as schema) {
+          <p class="panel-card__copy">{{ schema.description || 'This schema does not have a description yet.' }}</p>
+
+          <div class="admin-schema-stats">
+            <div>
+              <span>Version</span>
+              <strong>{{ schema.version }}</strong>
+            </div>
+            <div>
+              <span>Endpoints</span>
+              <strong>{{ vm.schemaCountById(schema.id) }}</strong>
+            </div>
+            <div>
+              <span>Updated</span>
+              <strong>{{ vm.formatDate(schema.updatedAt || schema.createdAt) }}</strong>
+            </div>
+          </div>
+
+          <div class="admin-schema-details">
+            <div>
+              <span>Source URL</span>
+              <code>{{ schema.sourceUrl || '—' }}</code>
+            </div>
+            <div>
+              <span>Schema ID</span>
+              <code>{{ schema.id }}</code>
+            </div>
+          </div>
+
+          <div class="admin-schema-actions">
+            <button type="button" class="login-button" (click)="vm.startCreateSchema()">New schema</button>
+            <button type="button" class="login-button login-button--secondary" (click)="vm.selectSchema(schema.id)">
+              Edit selected
+            </button>
+            <button type="button" class="login-button login-button--secondary" (click)="vm.deleteSchema(schema.id)">
+              Delete
+            </button>
+          </div>
+        } @else {
+          <div class="toc__empty toc__empty--soft">
+            <p>Select a schema to inspect its details.</p>
+          </div>
+        }
+      </section>
+
+      <section class="panel-card admin-schema-editor">
+        <div class="panel-card__head">
+          <div>
+            <p class="content-empty__eyebrow">Schema Editor</p>
+            <h3>{{ vm.schemaFormMode() === 'edit' ? 'Edit schema' : 'Create schema' }}</h3>
+          </div>
+        </div>
+
+        <div class="panel-form">
+          <div class="panel-grid panel-grid--2">
+            <label class="field">
+              <span>Source URL</span>
+              <input
+                [value]="vm.schemaSourceUrl()"
+                (input)="vm.updateSchemaField('sourceUrl', $any($event.target).value)"
+                placeholder="https://api.payments.io/v1/schema.json"
+              />
+            </label>
+            <label class="field">
+              <span>Version</span>
+              <input [value]="vm.schemaVersion()" (input)="vm.updateSchemaField('version', $any($event.target).value)" placeholder="v2.4.0" />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Title</span>
+            <input [value]="vm.schemaTitle()" (input)="vm.updateSchemaField('title', $any($event.target).value)" placeholder="Payment Service" />
+          </label>
+
+          <label class="field">
+            <span>Description</span>
+            <input
+              [value]="vm.schemaDescription()"
+              (input)="vm.updateSchemaField('description', $any($event.target).value)"
+              placeholder="Handles payment orchestration and settlement flows."
+            />
+          </label>
+
+          <div class="panel-grid panel-grid--2">
+            <label class="field">
+              <span>Visibility</span>
+              <select [value]="vm.schemaVisibility()" (change)="vm.updateSchemaVisibility($any($event.target).value)">
+                <option value="PUBLICO">PUBLICO</option>
+                <option value="PRIVADO">PRIVADO</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Mode</span>
+              <input [value]="vm.schemaFormMode() === 'edit' ? 'Edit selected schema' : 'Creating new schema'" readonly />
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Raw Schema JSON</span>
+            <textarea class="mono" rows="12" [value]="vm.schemaRaw()" (input)="vm.updateSchemaRaw($any($event.target).value)"></textarea>
+          </label>
+
+          <div class="admin-actions">
+            <button type="button" class="login-button" [disabled]="vm.loading()" (click)="vm.saveSchema()">
+              {{ vm.schemaFormMode() === 'edit' ? 'Save changes' : 'Create schema' }}
+            </button>
+            <button type="button" class="login-button login-button--secondary" (click)="vm.startCreateSchema()">Reset</button>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>

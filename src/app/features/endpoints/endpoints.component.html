@@ -1,0 +1,240 @@
+<section class="section admin-schema-page">
+  <div class="admin-schema-header">
+    <div>
+      <p class="content-empty__eyebrow">Endpoints Management</p>
+      <h2>Endpoints</h2>
+      <p>Review and maintain endpoint documentation, visibility and payload details.</p>
+    </div>
+
+    <div class="admin-schema-header__actions">
+      <button type="button" class="login-button" (click)="vm.startCreateEndpoint()">New Endpoint</button>
+      <button type="button" class="login-button login-button--secondary" (click)="vm.loadAdminWorkspace()">Refresh</button>
+    </div>
+  </div>
+
+  <div class="admin-schema-layout">
+    <section class="table-shell admin-schema-table-shell">
+      <table>
+        <thead>
+          <tr>
+            <th>Path</th>
+            <th>Method</th>
+            <th>Status</th>
+            <th>Schema</th>
+            <th>Summary</th>
+            <th>Last Update</th>
+            <th class="admin-table-actions">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @if (vm.filteredEndpoints.length > 0) {
+            @for (endpoint of vm.filteredEndpoints; track endpoint.id) {
+              <tr
+                class="data-table-row admin-schema-row"
+                [class.is-active]="vm.selectedEndpoint?.id === endpoint.id"
+                (click)="vm.selectEndpoint(endpoint.id)"
+              >
+                <td>
+                  <div class="admin-schema-title">
+                    <span class="material-symbols-outlined admin-schema-title__icon">api</span>
+                    <div>
+                      <strong>{{ endpoint.path }}</strong>
+                      <span>{{ endpoint.description || endpoint.summary || 'No description provided.' }}</span>
+                    </div>
+                  </div>
+                </td>
+                <td>
+                  <span class="method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
+                </td>
+                <td>
+                  <span class="admin-schema-badge">{{ endpoint.status }}</span>
+                </td>
+                <td class="mono text-on-surface-variant">#{{ endpoint.schemaId }}</td>
+                <td class="text-on-surface-variant">{{ endpoint.summary || '—' }}</td>
+                <td class="text-on-surface-variant">{{ vm.formatDate(endpoint.updatedAt || endpoint.createdAt) }}</td>
+                <td class="admin-table-actions">
+                  <div class="admin-row-actions">
+                    <button type="button" class="icon-button" title="View" (click)="$event.stopPropagation(); vm.selectEndpoint(endpoint.id)">
+                      <span class="material-symbols-outlined">visibility</span>
+                    </button>
+                    <button type="button" class="icon-button" title="Refresh" (click)="$event.stopPropagation(); vm.loadAdminWorkspace()">
+                      <span class="material-symbols-outlined">refresh</span>
+                    </button>
+                    <button type="button" class="icon-button" title="Delete" (click)="$event.stopPropagation(); vm.deleteEndpoint(endpoint.id)">
+                      <span class="material-symbols-outlined">delete</span>
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            }
+          } @else {
+            <tr>
+              <td colspan="7">
+                <div class="empty-state empty-state--table">
+                  <strong>No endpoints found.</strong>
+                  <p>Select another schema or create a new endpoint.</p>
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </section>
+
+    <aside class="admin-schema-side">
+      <section class="panel-card admin-schema-detail">
+        <div class="panel-card__head">
+          <div>
+            <p class="content-empty__eyebrow">Contextual Details</p>
+            <h3>{{ vm.selectedEndpoint?.path || 'Select an endpoint' }}</h3>
+          </div>
+          @if (vm.selectedEndpoint) {
+            <span class="admin-schema-badge">{{ vm.selectedEndpoint.status }}</span>
+          }
+        </div>
+
+        @if (vm.selectedEndpoint; as endpoint) {
+          <p class="panel-card__copy">{{ endpoint.summary || endpoint.description || 'No summary provided yet.' }}</p>
+
+          <div class="admin-schema-stats">
+            <div>
+              <span>Method</span>
+              <strong>{{ endpoint.method }}</strong>
+            </div>
+            <div>
+              <span>Schema</span>
+              <strong>#{{ endpoint.schemaId }}</strong>
+            </div>
+            <div>
+              <span>Updated</span>
+              <strong>{{ vm.formatDate(endpoint.updatedAt || endpoint.createdAt) }}</strong>
+            </div>
+          </div>
+
+          <div class="admin-schema-details">
+            <div>
+              <span>Path</span>
+              <code>{{ endpoint.path }}</code>
+            </div>
+            <div>
+              <span>Operation ID</span>
+              <code>{{ endpoint.operationId || '—' }}</code>
+            </div>
+          </div>
+
+          <div class="admin-schema-actions">
+            <button type="button" class="login-button" (click)="vm.startCreateEndpoint()">New endpoint</button>
+            <button type="button" class="login-button login-button--secondary" (click)="vm.selectEndpoint(endpoint.id)">
+              Edit selected
+            </button>
+            <button type="button" class="login-button login-button--secondary" (click)="vm.deleteEndpoint(endpoint.id)">
+              Delete
+            </button>
+          </div>
+        } @else {
+          <div class="toc__empty toc__empty--soft">
+            <p>Select an endpoint to inspect its details.</p>
+          </div>
+        }
+      </section>
+
+      <section class="panel-card admin-schema-editor">
+        <div class="panel-card__head">
+          <div>
+            <p class="content-empty__eyebrow">Endpoint Editor</p>
+            <h3>{{ vm.endpointFormMode() === 'edit' ? 'Edit endpoint' : 'Create endpoint' }}</h3>
+          </div>
+        </div>
+
+        <div class="panel-form">
+          <div class="panel-grid panel-grid--2">
+            <label class="field">
+              <span>Schema</span>
+              <select [value]="vm.endpointSchemaId()" (change)="vm.updateEndpointField('schemaId', $any($event.target).value)">
+                @for (schema of vm.schemas; track schema.id) {
+                  <option [value]="schema.id">{{ schema.title }} ({{ schema.visibility }})</option>
+                }
+              </select>
+            </label>
+            <label class="field">
+              <span>Method</span>
+              <select [value]="vm.endpointMethod()" (change)="vm.updateEndpointMethod($any($event.target).value)">
+                <option value="GET">GET</option>
+                <option value="POST">POST</option>
+                <option value="PUT">PUT</option>
+                <option value="DELETE">DELETE</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Path</span>
+            <input [value]="vm.endpointPath()" (input)="vm.updateEndpointField('path', $any($event.target).value)" placeholder="/payments/{id}" />
+          </label>
+
+          <label class="field">
+            <span>Summary</span>
+            <input [value]="vm.endpointSummary()" (input)="vm.updateEndpointField('summary', $any($event.target).value)" placeholder="Return payment information" />
+          </label>
+
+          <label class="field">
+            <span>Description</span>
+            <input
+              [value]="vm.endpointDescription()"
+              (input)="vm.updateEndpointField('description', $any($event.target).value)"
+              placeholder="Returns the complete payment payload."
+            />
+          </label>
+
+          <div class="panel-grid panel-grid--2">
+            <label class="field">
+              <span>Operation ID</span>
+              <input [value]="vm.endpointOperationId()" (input)="vm.updateEndpointField('operationId', $any($event.target).value)" />
+            </label>
+            <label class="field">
+              <span>Status</span>
+              <select [value]="vm.endpointStatus()" (change)="vm.updateEndpointField('status', $any($event.target).value)">
+                <option value="VISIBLE">VISIBLE</option>
+                <option value="OCULTO">OCULTO</option>
+                <option value="PENDIENTE_ACTUALIZACION">PENDIENTE_ACTUALIZACION</option>
+                <option value="PENDIENTE_DOCUMENTACION">PENDIENTE_DOCUMENTACION</option>
+              </select>
+            </label>
+          </div>
+
+          <label class="field">
+            <span>Tags</span>
+            <input [value]="vm.endpointTags()" (input)="vm.updateEndpointField('tags', $any($event.target).value)" placeholder="payments, finance" />
+          </label>
+
+          <label class="field field--inline">
+            <input type="checkbox" [checked]="vm.endpointDeprecated()" (change)="vm.updateEndpointDeprecated($any($event.target).checked)" />
+            <span>Deprecated</span>
+          </label>
+
+          <label class="field">
+            <span>Parameters JSON</span>
+            <textarea class="mono" rows="5" [value]="vm.endpointParametersText()" (input)="vm.updateEndpointParameters($any($event.target).value)"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Request Body JSON</span>
+            <textarea class="mono" rows="5" [value]="vm.endpointRequestBodyText()" (input)="vm.updateEndpointRequestBody($any($event.target).value)"></textarea>
+          </label>
+
+          <label class="field">
+            <span>Responses JSON</span>
+            <textarea class="mono" rows="7" [value]="vm.endpointResponsesText()" (input)="vm.updateEndpointResponses($any($event.target).value)"></textarea>
+          </label>
+
+          <div class="admin-actions">
+            <button type="button" class="login-button" [disabled]="vm.loading()" (click)="vm.saveEndpoint()">
+              {{ vm.endpointFormMode() === 'edit' ? 'Save changes' : 'Create endpoint' }}
+            </button>
+            <button type="button" class="login-button login-button--secondary" (click)="vm.startCreateEndpoint()">Reset</button>
+          </div>
+        </div>
+      </section>
+    </aside>
+  </div>
+</section>

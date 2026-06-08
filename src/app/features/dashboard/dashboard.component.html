@@ -1,0 +1,228 @@
+<section class="admin-hero">
+  <div class="admin-hero__copy">
+    <span class="meta-pill meta-pill--private">ADMINISTRADOR</span>
+    <code class="hero__url">/admin</code>
+    <h1>Admin Dashboard</h1>
+    <p>
+      Manage your API architecture, documentation coverage and private access from a single place.
+    </p>
+  </div>
+
+  <div class="admin-hero__actions">
+    <button type="button" class="admin-hero__action admin-hero__action--primary" (click)="vm.navigate('schemas')">
+      <span class="material-symbols-outlined">schema</span>
+      Review Schemas
+    </button>
+  </div>
+</section>
+
+<div class="admin-dashboard">
+  <div class="admin-dashboard__main">
+    <div class="admin-stat-grid">
+      <article class="admin-stat-card">
+        <div class="admin-stat-card__head">
+          <span class="font-label-caps">Total Schemas</span>
+          <span class="material-symbols-outlined">schema</span>
+        </div>
+        <div class="admin-stat-card__value">{{ vm.schemaCount }}</div>
+        <div class="admin-stat-card__chips">
+          <span class="admin-pill admin-pill--success">Public: {{ vm.publicSchemaCount }}</span>
+          <span class="admin-pill">Private: {{ vm.privateSchemaCount }}</span>
+        </div>
+      </article>
+
+      <article class="admin-stat-card">
+        <div class="admin-stat-card__head">
+          <span class="font-label-caps">Total Endpoints</span>
+          <span class="material-symbols-outlined">api</span>
+        </div>
+        <div class="admin-stat-card__value">{{ vm.endpointCount }}</div>
+        <div class="admin-stat-card__chips">
+          <span class="admin-pill admin-pill--info">Visible: {{ vm.visibleEndpointCount }}</span>
+          <span class="admin-pill">Hidden: {{ vm.hiddenEndpointCount }}</span>
+        </div>
+      </article>
+
+      <article class="admin-stat-card admin-stat-card--alert">
+        <div class="admin-stat-card__head">
+          <span class="font-label-caps">Attention Required</span>
+          <span class="material-symbols-outlined">assignment_late</span>
+        </div>
+        <div class="admin-stat-card__value">{{ vm.pendingEndpointCount }}</div>
+        <div class="admin-pill admin-pill--warning">Pending Documentation</div>
+      </article>
+
+      <article class="admin-stat-card admin-stat-card--accent">
+        <div class="admin-stat-card__head">
+          <span class="font-label-caps">Coverage</span>
+          <span class="material-symbols-outlined">fact_check</span>
+        </div>
+        <div class="admin-stat-card__value">{{ vm.coveragePercent }}%</div>
+        <div class="admin-stat-card__chips">
+          <span class="admin-pill admin-pill--success">Goal: 100%</span>
+        </div>
+      </article>
+    </div>
+
+    <section class="section">
+      <h2>Documentation Health Overview</h2>
+      <div class="admin-health-card">
+        <div class="admin-health-chart">
+          <svg viewBox="0 0 36 36" aria-label="Documentation coverage chart">
+            <path
+              class="admin-health-chart__track"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="3"
+            ></path>
+            <path
+              class="admin-health-chart__fill"
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none"
+              stroke="currentColor"
+              [attr.stroke-dasharray]="vm.donutDasharray"
+              stroke-linecap="round"
+              stroke-width="3"
+            ></path>
+          </svg>
+          <div class="admin-health-chart__center">
+            <strong>{{ vm.coveragePercent }}%</strong>
+            <span>Coverage</span>
+          </div>
+        </div>
+
+        <div class="admin-health-legend">
+          <div class="admin-health-legend__item">
+            <span class="admin-dot admin-dot--primary"></span>
+            <div>
+              <strong>Fully Documented</strong>
+              <p>{{ vm.visibleEndpointCount }} endpoints</p>
+            </div>
+          </div>
+          <div class="admin-health-legend__item">
+            <span class="admin-dot"></span>
+            <div>
+              <strong>Missing Info</strong>
+              <p>{{ vm.hiddenEndpointCount }} endpoints</p>
+            </div>
+          </div>
+          <div class="admin-health-progress">
+            <div class="admin-health-progress__track">
+              <div class="admin-health-progress__fill" [style.width.%]="vm.coveragePercent"></div>
+            </div>
+            <p>Goal: 100% coverage. Pending endpoints are visible to the admin team.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="admin-dashboard__split">
+    <section class="section">
+      <div class="section__head">
+        <h2>Recent Activity Feed</h2>
+      </div>
+
+        <div class="admin-activity-list">
+          @if (vm.activityFeed.length > 0) {
+            @for (item of vm.activityFeed; track item.kind + item.title + item.date) {
+              <article class="admin-activity-item">
+                <div class="admin-activity-item__icon">
+                  <span class="material-symbols-outlined">{{ item.icon }}</span>
+                </div>
+                <div class="admin-activity-item__body">
+                  <strong>{{ item.title }}</strong>
+                  <p>{{ item.kind }} · {{ item.description }}</p>
+                </div>
+                <time>{{ vm.formatDate(item.date) }}</time>
+              </article>
+            }
+          } @else {
+            <div class="toc__empty">
+              <p>No recent activity yet.</p>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="section__head">
+          <h2>Schema Snapshot</h2>
+          <button type="button" class="section__link" (click)="vm.navigate('schemas')">Open schemas</button>
+        </div>
+
+        <div class="admin-schema-snapshot">
+          @if (vm.schemas.length > 0) {
+            @for (schema of vm.schemas.slice(0, 4); track schema.id) {
+              <article class="admin-schema-snapshot__item">
+                <div class="admin-schema-snapshot__top">
+                  <div>
+                    <strong>{{ schema.title }}</strong>
+                    <p>{{ schema.description || 'No description provided.' }}</p>
+                  </div>
+                  <span
+                    class="admin-schema-badge"
+                    [class.admin-schema-badge--private]="schema.visibility === 'PRIVADO'"
+                  >
+                    {{ schema.visibility }}
+                  </span>
+                </div>
+
+                <div class="admin-schema-snapshot__meta">
+                  <span>v{{ schema.version }}</span>
+                  <span>{{ vm.formatDate(schema.updatedAt) }}</span>
+                </div>
+              </article>
+            }
+          } @else {
+            <div class="toc__empty">
+              <p>No schemas loaded yet.</p>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <aside class="admin-dashboard__aside">
+    <section class="panel-card admin-quick-actions">
+      <div class="panel-card__head">
+        <div>
+          <p class="panel-card__eyebrow">Quick Actions</p>
+          <h3>Workflow shortcuts</h3>
+        </div>
+      </div>
+
+      <div class="admin-quick-actions__list">
+        <button type="button" class="admin-quick-actions__button" (click)="vm.navigate('schemas')">
+          <span class="material-symbols-outlined">schema</span>
+          Manage schemas
+        </button>
+      </div>
+    </section>
+
+    <section class="panel-card admin-overview-panel">
+      <div class="panel-card__head">
+        <div>
+          <p class="panel-card__eyebrow">Status</p>
+          <h3>Current snapshot</h3>
+        </div>
+      </div>
+
+      <div class="admin-overview-panel__list">
+        <div class="admin-overview-panel__item">
+          <span>Total schemas</span>
+          <strong>{{ vm.schemaCount }}</strong>
+        </div>
+        <div class="admin-overview-panel__item">
+          <span>Private schemas</span>
+          <strong>{{ vm.privateSchemaCount }}</strong>
+        </div>
+        <div class="admin-overview-panel__item">
+          <span>Pending endpoints</span>
+          <strong>{{ vm.pendingEndpointCount }}</strong>
+        </div>
+      </div>
+    </section>
+  </aside>
+</div>

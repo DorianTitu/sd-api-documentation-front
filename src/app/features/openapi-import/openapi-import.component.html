@@ -1,0 +1,42 @@
+<section class="section">
+  <h2>OpenAPI Import</h2>
+  <div class="admin-split">
+    <section class="panel-card">
+      <div class="panel-card__head">
+        <div>
+          <p class="content-empty__eyebrow">Extract</p>
+          <h3>Preview from OpenAPI URL</h3>
+        </div>
+      </div>
+      <div class="panel-form">
+        <label class="field">
+          <span>OpenAPI URL</span>
+          <input [value]="vm.importUrl" (input)="vm.updateImportUrl($any($event.target).value)" placeholder="https://example.com/v3/api-docs" />
+        </label>
+        <div class="admin-actions">
+          <button type="button" class="login-button" [disabled]="vm.loading()" (click)="vm.extractSchema()">Extract</button>
+          <button type="button" class="login-button login-button--secondary" [disabled]="!vm.extractPreview" (click)="vm.createFromPreview()">Use preview</button>
+        </div>
+        <label class="field">
+          <span>Preview JSON</span>
+          <textarea class="mono" [value]="vm.importPreviewText || vm.jsonPreview(vm.extractPreview)" readonly rows="16"></textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="panel-card">
+      <div class="panel-card__head">
+        <div>
+          <p class="content-empty__eyebrow">Quick import</p>
+          <h3>Save schema after preview</h3>
+        </div>
+      </div>
+      <p class="panel-card__copy">
+        The preview helps validate the extracted metadata before persisting the schema.
+      </p>
+      <button type="button" class="login-button" [disabled]="vm.loading() || !vm.extractPreview" (click)="vm.setAdminView('schemas')">
+        Go to Schemas
+      </button>
+    </section>
+  </div>
+</section>
