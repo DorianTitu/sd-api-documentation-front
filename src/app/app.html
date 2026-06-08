@@ -1,94 +1,60 @@
 <div
   class="page-shell"
+  [class.page-shell--admin]="isAdmin()"
   tabindex="0"
   (keydown)="handleKeydown($event)"
 >
-  <header class="topbar">
-    <nav class="topbar__links" aria-label="Documentation sections">
-      <a href="#" class="topbar__link topbar__link--active">Docs</a>
-      <a href="#" class="topbar__link">Changelog</a>
-    </nav>
-
-    <label class="topbar__search" aria-label="Search documentation">
-      <span class="material-symbols-outlined search__icon">search</span>
-      <input
-        #searchInput
-        type="text"
-        [placeholder]="isAdmin() ? 'Buscar schemas' : 'Buscar documentación'"
-        [value]="searchQuery()"
-        (input)="setSearchQuery(searchInput.value)"
-      />
-    </label>
-
-    <div class="topbar__actions">
-      @if (isAdmin()) {
-        <button type="button" class="login-button login-button--secondary" (click)="setAdminView('schemas')">
-          Schemas
+  <header class="topbar" [class.topbar--admin]="isAdmin()">
+    @if (isAdmin()) {
+      <div class="topbar__admin-meta">
+        <button type="button" class="topbar__admin-avatar" aria-label="Admin profile">
+          <span>{{ userInitials() }}</span>
         </button>
-      }
 
-      @if (isAuthenticated()) {
-        <div class="user-chip">
-          <div class="user-chip__avatar">{{ userInitials() }}</div>
-          <div class="user-chip__meta">
-            <strong>{{ userName() }}</strong>
-            <span>{{ userRoleLabel() }}</span>
-            <button type="button" (click)="toggleSession()">Salir</button>
-          </div>
+        <div class="topbar__admin-user">
+          <strong>{{ userName() }}</strong>
+          <span>{{ userRoleLabel() }}</span>
+          <button type="button" class="topbar__admin-signout" (click)="toggleSession()">Salir</button>
         </div>
-      } @else {
-        <button type="button" class="icon-circle" aria-label="Sign in" (click)="openLoginModal()">
-          <span class="material-symbols-outlined">account_circle</span>
-        </button>
-      }
-    </div>
+      </div>
+    } @else {
+      <nav class="topbar__links" aria-label="Documentation sections">
+        <a href="#" class="topbar__link topbar__link--active">Docs</a>
+        <a href="#" class="topbar__link">Changelog</a>
+      </nav>
+
+      <label class="topbar__search" aria-label="Search documentation">
+        <span class="material-symbols-outlined search__icon">search</span>
+        <input
+          #searchInput
+          type="text"
+          [placeholder]="isAdmin() ? 'Buscar schemas' : 'Buscar documentación'"
+          [value]="searchQuery()"
+          (input)="setSearchQuery(searchInput.value)"
+        />
+      </label>
+
+      <div class="topbar__actions">
+        @if (isAuthenticated()) {
+          <div class="user-chip">
+            <div class="user-chip__avatar">{{ userInitials() }}</div>
+            <div class="user-chip__meta">
+              <strong>{{ userName() }}</strong>
+              <span>{{ userRoleLabel() }}</span>
+              <button type="button" (click)="toggleSession()">Salir</button>
+            </div>
+          </div>
+        } @else {
+          <button type="button" class="icon-circle" aria-label="Sign in" (click)="openLoginModal()">
+            <span class="material-symbols-outlined">account_circle</span>
+          </button>
+        }
+      </div>
+    }
   </header>
 
   @if (isAdmin()) {
     <app-admin-layout>
-      <aside class="sidebar admin-sidebar">
-      <div class="sidebar__header">
-        <span class="sidebar__eyebrow">Admin Console</span>
-      </div>
-
-      <nav class="sidebar__nav admin-nav" aria-label="Admin navigation">
-        <button
-          type="button"
-          class="service-group__button admin-nav__button"
-          [class.is-active]="adminView() === 'dashboard'"
-          (click)="setAdminView('dashboard')"
-        >
-          <span class="service-group__left">
-            <span class="material-symbols-outlined">dashboard</span>
-            <span>Dashboard</span>
-          </span>
-        </button>
-
-        <button
-          type="button"
-          class="service-group__button admin-nav__button"
-          [class.is-active]="adminView() === 'schemas'"
-          (click)="setAdminView('schemas')"
-        >
-          <span class="service-group__left">
-            <span class="material-symbols-outlined">schema</span>
-            <span>Schemas</span>
-          </span>
-        </button>
-      </nav>
-
-      <div class="admin-sidebar__footer">
-        <div class="admin-kpi">
-          <span>Total schemas</span>
-          <strong>{{ adminSchemaCount() }}</strong>
-        </div>
-        <div class="admin-kpi">
-          <span>Private schemas</span>
-          <strong>{{ adminPrivateSchemaCount() }}</strong>
-        </div>
-      </div>
-    </aside>
-
       <main class="content admin-content" #contentScroll>
       <div class="content__inner content__inner--admin">
         @if (adminNotice()) {
@@ -111,6 +77,247 @@
       </div>
       </main>
     </app-admin-layout>
+
+    @if (adminSchemaEditorOpen()) {
+      <section
+        class="modal-backdrop modal-backdrop--schema"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="admin-schema-editor-title"
+        (click)="closeAdminSchemaEditor()"
+      >
+        <article class="schema-editor-modal" (click)="$event.stopPropagation()">
+          <button type="button" class="schema-editor-modal__close" aria-label="Close schema editor" (click)="closeAdminSchemaEditor()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+
+          <header class="schema-editor-modal__header">
+            <p class="content-empty__eyebrow">Schemas Management</p>
+            <h2 id="admin-schema-editor-title">{{ selectedAdminSchema()?.title || 'Edit schema' }}</h2>
+            <p>
+              Ajusta la metadata del schema y edita endpoints individuales sin salir del dashboard.
+            </p>
+          </header>
+
+          @if (adminNotice()) {
+            <section class="notice-banner notice-banner--modal" role="alert">
+              <span class="material-symbols-outlined">info</span>
+              <p>{{ adminNotice() }}</p>
+              <button type="button" class="notice-banner__close" (click)="clearAdminNotice()">Cerrar</button>
+            </section>
+          }
+
+          <div class="schema-editor-modal__grid">
+            <section class="schema-editor-modal__panel schema-editor-modal__panel--schema">
+              <div class="schema-editor-modal__panel-head">
+                <div>
+                  <p class="content-empty__eyebrow">Schema Editor</p>
+                  <h3>Editar esquema</h3>
+                </div>
+                <span class="schema-editor-modal__badge">
+                  {{ selectedAdminSchema()?.visibility || 'PUBLICO' }}
+                </span>
+              </div>
+
+              <div class="panel-form">
+                <div class="panel-grid panel-grid--2">
+                  <label class="field">
+                    <span>Source URL</span>
+                    <input
+                      [value]="adminSchemaSourceUrl"
+                      (input)="updateAdminSchemaField('sourceUrl', $any($event.target).value)"
+                      placeholder="http://localhost:8081/v3/api-docs"
+                    />
+                  </label>
+
+                  <label class="field">
+                    <span>Version</span>
+                    <input [value]="adminSchemaVersion" (input)="updateAdminSchemaField('version', $any($event.target).value)" />
+                  </label>
+                </div>
+
+                <label class="field">
+                  <span>Title</span>
+                  <input [value]="adminSchemaTitle" (input)="updateAdminSchemaField('title', $any($event.target).value)" />
+                </label>
+
+                <label class="field">
+                  <span>Description</span>
+                  <textarea
+                    rows="4"
+                    [value]="adminSchemaDescription"
+                    (input)="updateAdminSchemaField('description', $any($event.target).value)"
+                  ></textarea>
+                </label>
+
+                <div class="panel-grid panel-grid--2">
+                  <label class="field">
+                    <span>Visibility</span>
+                    <select [value]="adminSchemaVisibility" (change)="updateAdminSchemaVisibility($any($event.target).value)">
+                      <option value="PUBLICO">PUBLICO</option>
+                      <option value="PRIVADO">PRIVADO</option>
+                    </select>
+                  </label>
+
+                  <label class="field">
+                    <span>Schema format</span>
+                    <input [value]="adminSchemaSourceFormat()" readonly />
+                  </label>
+                </div>
+
+                <label class="field">
+                  <span>Raw Schema JSON</span>
+                  <textarea class="mono" rows="12" [value]="adminSchemaRawSchemaText" (input)="updateAdminSchemaRawSchema($any($event.target).value)"></textarea>
+                </label>
+
+                <div class="admin-actions admin-actions--modal">
+                  <button type="button" class="login-button" [disabled]="adminLoading()" (click)="saveAdminSchema()">
+                    Save schema
+                  </button>
+                  <button type="button" class="login-button login-button--secondary" (click)="closeAdminSchemaEditor()">
+                    Close
+                  </button>
+                </div>
+              </div>
+            </section>
+
+            <section class="schema-editor-modal__panel schema-editor-modal__panel--endpoints">
+              <div class="schema-editor-modal__panel-head">
+                <div>
+                  <p class="content-empty__eyebrow">Endpoints</p>
+                  <h3>Edit endpoint documentation</h3>
+                </div>
+                <span class="schema-editor-modal__badge schema-editor-modal__badge--soft">
+                  {{ selectedAdminSchemaEndpoints().length }} total
+                </span>
+              </div>
+
+              <div class="schema-editor-modal__endpoint-list">
+                @if (selectedAdminSchemaEndpoints().length > 0) {
+                  @for (endpoint of selectedAdminSchemaEndpoints(); track endpoint.id) {
+                    <button
+                      type="button"
+                      class="schema-editor-modal__endpoint-item"
+                      [class.is-active]="selectedAdminEndpoint()?.id === endpoint.id"
+                      (click)="selectAdminEndpoint(endpoint.id)"
+                    >
+                      <span class="method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
+                      <span class="schema-editor-modal__endpoint-copy">
+                        <strong>{{ endpoint.summary || endpoint.path }}</strong>
+                        <span>{{ endpoint.path }}</span>
+                      </span>
+                      <span class="schema-editor-modal__endpoint-state">{{ endpoint.status }}</span>
+                    </button>
+                  }
+                } @else {
+                  <div class="toc__empty toc__empty--soft">
+                    <p>No endpoints were found for this schema.</p>
+                  </div>
+                }
+              </div>
+
+              @if (selectedAdminEndpoint(); as endpoint) {
+                <div class="schema-editor-modal__endpoint-editor">
+                  <div class="schema-editor-modal__panel-head schema-editor-modal__panel-head--compact">
+                    <div>
+                      <p class="content-empty__eyebrow">Endpoint Editor</p>
+                      <h3>{{ endpoint.method }} {{ endpoint.path }}</h3>
+                    </div>
+                    <span class="schema-editor-modal__badge schema-editor-modal__badge--soft">
+                      {{ endpoint.status }}
+                    </span>
+                  </div>
+
+                  <div class="panel-form">
+                    <div class="panel-grid panel-grid--2">
+                      <label class="field">
+                        <span>Method</span>
+                        <select [value]="adminEndpointMethod" (change)="updateAdminEndpointMethod($any($event.target).value)">
+                          <option value="GET">GET</option>
+                          <option value="POST">POST</option>
+                          <option value="PUT">PUT</option>
+                          <option value="DELETE">DELETE</option>
+                        </select>
+                      </label>
+
+                      <label class="field">
+                        <span>Status</span>
+                        <select [value]="adminEndpointStatus" (change)="updateAdminEndpointField('status', $any($event.target).value)">
+                          <option value="VISIBLE">VISIBLE</option>
+                          <option value="OCULTO">OCULTO</option>
+                          <option value="PENDIENTE_ACTUALIZACION">PENDIENTE_ACTUALIZACION</option>
+                          <option value="PENDIENTE_DOCUMENTACION">PENDIENTE_DOCUMENTACION</option>
+                        </select>
+                      </label>
+                    </div>
+
+                    <label class="field">
+                      <span>Path</span>
+                      <input [value]="adminEndpointPath" (input)="updateAdminEndpointField('path', $any($event.target).value)" />
+                    </label>
+
+                    <label class="field">
+                      <span>Summary</span>
+                      <input [value]="adminEndpointSummary" (input)="updateAdminEndpointField('summary', $any($event.target).value)" />
+                    </label>
+
+                    <label class="field">
+                      <span>Description</span>
+                      <textarea rows="4" [value]="adminEndpointDescription" (input)="updateAdminEndpointField('description', $any($event.target).value)"></textarea>
+                    </label>
+
+                    <div class="panel-grid panel-grid--2">
+                      <label class="field">
+                        <span>Operation ID</span>
+                        <input [value]="adminEndpointOperationId" (input)="updateAdminEndpointField('operationId', $any($event.target).value)" />
+                      </label>
+
+                      <label class="field">
+                        <span>Tags</span>
+                        <input [value]="adminEndpointTags" (input)="updateAdminEndpointField('tags', $any($event.target).value)" />
+                      </label>
+                    </div>
+
+                    <label class="field field--inline">
+                      <input type="checkbox" [checked]="adminEndpointDeprecated" (change)="updateAdminEndpointDeprecated($any($event.target).checked)" />
+                      <span>Deprecated</span>
+                    </label>
+
+                    <label class="field">
+                      <span>Parameters JSON</span>
+                      <textarea class="mono" rows="4" [value]="adminEndpointParametersText" (input)="updateAdminEndpointParameters($any($event.target).value)"></textarea>
+                    </label>
+
+                    <label class="field">
+                      <span>Request Body JSON</span>
+                      <textarea class="mono" rows="4" [value]="adminEndpointRequestBodyText" (input)="updateAdminEndpointRequestBody($any($event.target).value)"></textarea>
+                    </label>
+
+                    <label class="field">
+                      <span>Responses JSON</span>
+                      <textarea class="mono" rows="6" [value]="adminEndpointResponsesText" (input)="updateAdminEndpointResponses($any($event.target).value)"></textarea>
+                    </label>
+
+                    <div class="admin-actions admin-actions--modal">
+                      <button type="button" class="login-button" [disabled]="adminLoading()" (click)="saveAdminEndpoint()">
+                        Update endpoint
+                      </button>
+                      <button type="button" class="login-button login-button--secondary" (click)="resetAdminEndpointEditor()">
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              } @else {
+                <div class="toc__empty toc__empty--soft">
+                  <p>Select an endpoint to edit its documentation.</p>
+                </div>
+              }
+            </section>
+          </div>
+        </article>
+      </section>
+    }
   } @else {
     <app-public-layout>
       <aside class="sidebar">
@@ -179,214 +386,235 @@
       </nav>
     </aside>
 
-      <main class="content" #contentScroll>
-      <div class="content__inner">
+      <main class="content" #contentScroll (scroll)="updateActiveSection()">
+      <div class="content__inner content__inner--doc">
         @if (activeDoc(); as doc) {
-        <section class="hero" id="overview">
-          <h1>{{ doc.title }}</h1>
-          <p>{{ doc.summary }}</p>
+          <article class="doc-body">
+            <section class="hero" id="overview">
+              <h1>{{ doc.title }}</h1>
+              <p>{{ doc.summary }}</p>
 
-          <div class="hero__meta">
-            <span class="meta-pill">Versión {{ doc.version }}</span>
-            @if (doc.private) {
-              <span class="meta-pill meta-pill--private">Privado</span>
-            } @else {
-              <span class="meta-pill">Público</span>
-            }
-          </div>
-        </section>
-
-        @if (notice()) {
-          <section class="notice-banner" role="alert">
-            <span class="material-symbols-outlined">info</span>
-            <p>{{ notice() }}</p>
-            <button type="button" class="notice-banner__close" (click)="clearNotice()">Cerrar</button>
-          </section>
-        }
-
-        <section class="section" id="parameters">
-          <h2 class="section-heading section-heading--parameters">
-            <span class="material-symbols-outlined section-heading__icon">tune</span>
-            <span>Parameters</span>
-          </h2>
-          @if (doc.parameters.length > 0) {
-            <div class="table-shell">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Requirement</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (parameter of doc.parameters; track parameter.name) {
-                    <tr>
-                      <td class="mono accent">{{ parameter.name }}</td>
-                      <td><span class="chip">{{ parameter.type }}</span></td>
-                      <td>
-                        <span class="req" [class.req--required]="parameter.requirement === 'Required'">
-                          {{ parameter.requirement }}
-                        </span>
-                      </td>
-                      <td>{{ parameter.description }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-        } @else {
-            <p class="empty-state">Este endpoint no declara parámetros de consulta.</p>
-          }
-        </section>
-
-        <section class="section" id="headers">
-          <h2 class="section-heading section-heading--headers">
-            <span class="material-symbols-outlined section-heading__icon">data_object</span>
-            <span>Headers</span>
-          </h2>
-          @if (doc.headers.length > 0) {
-            <div class="table-shell">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Value</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (header of doc.headers; track header.name) {
-                    <tr>
-                      <td class="mono accent">{{ header.name }}</td>
-                      <td class="mono">{{ header.value }}</td>
-                      <td>{{ header.description }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <p class="empty-state">No se requieren headers personalizados para este endpoint.</p>
-          }
-        </section>
-
-        <section class="section" id="request-body">
-          <h2 class="section-heading section-heading--request-body">
-            <span class="material-symbols-outlined section-heading__icon">edit_note</span>
-            <span>Request Body</span>
-          </h2>
-          @if (doc.requestBody.length > 0) {
-            <div class="table-shell">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Type</th>
-                    <th>Requirement</th>
-                    <th>Description</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (field of doc.requestBody; track field.name) {
-                    <tr>
-                      <td class="mono accent">{{ field.name }}</td>
-                      <td><span class="chip">{{ field.type }}</span></td>
-                      <td>
-                        <span class="req" [class.req--required]="field.requirement === 'Required'">
-                          {{ field.requirement }}
-                        </span>
-                      </td>
-                      <td>{{ field.description }}</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
-            </div>
-          } @else {
-            <p class="empty-state">No se requiere request body para este endpoint.</p>
-          }
-        </section>
-
-        <section class="api-console" aria-label="API console">
-          <div class="api-console__window">
-            <div class="api-console__windowbar" aria-hidden="true">
-              <div class="api-console__traffic">
-                <span class="api-console__traffic-dot api-console__traffic-dot--close"></span>
-                <span class="api-console__traffic-dot api-console__traffic-dot--minimize"></span>
-                <span class="api-console__traffic-dot api-console__traffic-dot--maximize"></span>
-              </div>
-              <span class="api-console__window-title">API Console</span>
-            </div>
-
-            @if (activeDoc(); as doc) {
-              <section class="api-console__section">
-                <div class="api-console__head">
-                  <span class="api-console__kicker">cURL</span>
-                  <button type="button" class="api-console__copy" (click)="copyExample()">
-                    <span class="material-symbols-outlined">content_copy</span>
-                    Copy
-                  </button>
-                </div>
-
-                <div class="code-card code-card--console">
-                  <div class="code-card__body">
-                    <pre><code>{{ renderExampleCode(doc) }}</code></pre>
-                  </div>
-                </div>
-              </section>
-            } @else {
-              <div class="api-console__empty">
-                <p>No hay documentación para mostrar todavía.</p>
-              </div>
-            }
-          </div>
-        </section>
-
-        <section class="section" id="responses">
-          <h2 class="section-heading section-heading--responses">
-            <span class="material-symbols-outlined section-heading__icon">task_alt</span>
-            <span>Responses</span>
-          </h2>
-          <div class="response-grid">
-            @for (response of doc.responses; track response.status) {
-              <article class="response-card">
-                <div class="response-card__head">
-                  <span class="status status--ok">{{ response.status }}</span>
-                  <span>{{ response.label }}</span>
-                </div>
-                <pre><code>{{ response.body }}</code></pre>
-              </article>
-            }
-          </div>
-        </section>
-
-        <section class="section" id="errors">
-          <h2 class="section-heading section-heading--errors">
-            <span class="material-symbols-outlined section-heading__icon">error</span>
-            <span>Errors</span>
-          </h2>
-          <div class="table-shell">
-            <table>
-              <thead>
-                <tr>
-                  <th>Code</th>
-                  <th>Description</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (error of doc.errors; track error.code) {
-                  <tr>
-                    <td class="mono accent">{{ error.code }}</td>
-                    <td>{{ error.description }}</td>
-                  </tr>
+              <div class="hero__meta">
+                <span class="meta-pill">Versión {{ doc.version }}</span>
+                @if (doc.private) {
+                  <span class="meta-pill meta-pill--private">Privado</span>
+                } @else {
+                  <span class="meta-pill">Público</span>
                 }
-              </tbody>
-            </table>
-          </div>
-        </section>
+              </div>
+            </section>
 
+            @if (notice()) {
+              <section class="notice-banner" role="alert">
+                <span class="material-symbols-outlined">info</span>
+                <p>{{ notice() }}</p>
+                <button type="button" class="notice-banner__close" (click)="clearNotice()">Cerrar</button>
+              </section>
+            }
+
+            <section class="section" id="parameters">
+              <h2 class="section-heading section-heading--parameters">
+                <span class="material-symbols-outlined section-heading__icon">tune</span>
+                <span>Parameters</span>
+              </h2>
+              @if (doc.parameters.length > 0) {
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Requirement</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (parameter of doc.parameters; track parameter.name) {
+                        <tr>
+                          <td class="mono accent">{{ parameter.name }}</td>
+                          <td><span class="chip">{{ parameter.type }}</span></td>
+                          <td>
+                            <span class="req" [class.req--required]="parameter.requirement === 'Required'">
+                              {{ parameter.requirement }}
+                            </span>
+                          </td>
+                          <td>{{ parameter.description }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="empty-state">Este endpoint no declara parámetros de consulta.</p>
+              }
+            </section>
+
+            <section class="section" id="headers">
+              <h2 class="section-heading section-heading--headers">
+                <span class="material-symbols-outlined section-heading__icon">data_object</span>
+                <span>Headers</span>
+              </h2>
+              @if (doc.headers.length > 0) {
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Value</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (header of doc.headers; track header.name) {
+                        <tr>
+                          <td class="mono accent">{{ header.name }}</td>
+                          <td class="mono">{{ header.value }}</td>
+                          <td>{{ header.description }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="empty-state">No se requieren headers personalizados para este endpoint.</p>
+              }
+            </section>
+
+            <section class="section" id="request-body">
+              <h2 class="section-heading section-heading--request-body">
+                <span class="material-symbols-outlined section-heading__icon">edit_note</span>
+                <span>Request Body</span>
+              </h2>
+              @if (doc.requestBody.length > 0) {
+                <div class="table-shell">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <th>Requirement</th>
+                        <th>Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (field of doc.requestBody; track field.name) {
+                        <tr>
+                          <td class="mono accent">{{ field.name }}</td>
+                          <td><span class="chip">{{ field.type }}</span></td>
+                          <td>
+                            <span class="req" [class.req--required]="field.requirement === 'Required'">
+                              {{ field.requirement }}
+                            </span>
+                          </td>
+                          <td>{{ field.description }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <p class="empty-state">No se requiere request body para este endpoint.</p>
+              }
+            </section>
+
+            <section class="api-console" aria-label="API console">
+              <div class="api-console__window">
+                <div class="api-console__windowbar" aria-hidden="true">
+                  <div class="api-console__traffic">
+                    <span class="api-console__traffic-dot api-console__traffic-dot--close"></span>
+                    <span class="api-console__traffic-dot api-console__traffic-dot--minimize"></span>
+                    <span class="api-console__traffic-dot api-console__traffic-dot--maximize"></span>
+                  </div>
+                  <span class="api-console__window-title">API Console</span>
+                </div>
+
+                @if (activeDoc(); as doc) {
+                  <section class="api-console__section">
+                    <div class="api-console__head">
+                      <span class="api-console__kicker">cURL</span>
+                      <button type="button" class="api-console__copy" (click)="copyExample()">
+                        <span class="material-symbols-outlined">content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+
+                    <div class="code-card code-card--console">
+                      <div class="code-card__body">
+                        <pre><code>{{ renderExampleCode(doc) }}</code></pre>
+                      </div>
+                    </div>
+                  </section>
+                } @else {
+                  <div class="api-console__empty">
+                    <p>No hay documentación para mostrar todavía.</p>
+                  </div>
+                }
+              </div>
+            </section>
+
+            <section class="section" id="responses">
+              <h2 class="section-heading section-heading--responses">
+                <span class="material-symbols-outlined section-heading__icon">task_alt</span>
+                <span>Responses</span>
+              </h2>
+              <div class="response-grid">
+                @for (response of doc.responses; track response.status) {
+                  <article class="response-card">
+                    <div class="response-card__head">
+                      <span class="status status--ok">{{ response.status }}</span>
+                      <span>{{ response.label }}</span>
+                    </div>
+                    <pre><code>{{ response.body }}</code></pre>
+                  </article>
+                }
+              </div>
+            </section>
+
+            <section class="section" id="errors">
+              <h2 class="section-heading section-heading--errors">
+                <span class="material-symbols-outlined section-heading__icon">error</span>
+                <span>Errors</span>
+              </h2>
+              <div class="table-shell">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Code</th>
+                      <th>Description</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (error of doc.errors; track error.code) {
+                      <tr>
+                        <td class="mono accent">{{ error.code }}</td>
+                        <td>{{ error.description }}</td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </article>
+
+          <aside class="doc-toc" aria-label="On this page">
+            <div class="toc__inner doc-toc__inner">
+              <h2>On this page</h2>
+              <nav class="doc-toc__nav">
+                @for (item of tocItems(); track item.id) {
+                  <button
+                    type="button"
+                    class="doc-toc__item"
+                    [class.is-active]="activeSection() === item.id"
+                    [attr.aria-current]="activeSection() === item.id ? 'location' : null"
+                    (click)="scrollTo(item.id)"
+                  >
+                    <span class="doc-toc__indicator"></span>
+                    <span>{{ item.label }}</span>
+                  </button>
+                }
+              </nav>
+            </div>
+          </aside>
         } @else {
           <div class="content-empty">
             <div class="content-empty__card">

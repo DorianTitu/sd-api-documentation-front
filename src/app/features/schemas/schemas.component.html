@@ -1,262 +1,343 @@
-<section class="section admin-schema-page">
-  <div class="admin-schema-header">
-    <div>
+@if (vm.schemaWizardOpen()) {
+  <section class="schema-wizard" role="dialog" aria-modal="true" aria-labelledby="schema-wizard-title">
+    <main class="schema-wizard__body">
+      <section class="schema-wizard__hero" [class.schema-wizard__hero--source]="vm.schemaWizardStep() === 1">
+        <div class="schema-wizard__hero-copy">
+          <h1 id="schema-wizard-title">
+            @if (vm.schemaWizardStep() === 1) {
+              Importar Nuevo Schema
+            } @else if (vm.schemaWizardStep() === 2) {
+              Configurar Endpoints
+            } @else {
+              Revisión Final del Schema
+            }
+          </h1>
+          <p>
+            @if (vm.schemaWizardStep() === 1) {
+              Conecte sus especificaciones OpenAPI para comenzar a perfilar y asegurar sus endpoints.<br />
+              Proporcione una URL pública o accesible para iniciar la sincronización.
+            } @else if (vm.schemaWizardStep() === 2) {
+              Revise y documente los endpoints extraídos desde su especificación OpenAPI.
+            } @else {
+              Verifica los datos del schema y de sus endpoints antes de guardarlo definitivamente.
+            }
+          </p>
+        </div>
+
+        <div class="schema-wizard__progress" aria-label="Wizard steps">
+          <div class="schema-wizard__step" [class.is-complete]="vm.schemaWizardStep() > 1" [class.is-active]="vm.schemaWizardStep() === 1">
+            <span class="schema-wizard__step-badge">
+              @if (vm.schemaWizardStep() > 1) {
+                <span class="material-symbols-outlined">check</span>
+              } @else {
+                1
+              }
+            </span>
+            <span>Fuente</span>
+          </div>
+          <div class="schema-wizard__step-connector" [class.is-complete]="vm.schemaWizardStep() > 1"></div>
+          <div class="schema-wizard__step" [class.is-complete]="vm.schemaWizardStep() > 2" [class.is-active]="vm.schemaWizardStep() === 2">
+            <span class="schema-wizard__step-badge">
+              @if (vm.schemaWizardStep() > 2) {
+                <span class="material-symbols-outlined">check</span>
+              } @else {
+                2
+              }
+            </span>
+            <span>Configuración</span>
+          </div>
+          <div class="schema-wizard__step-connector" [class.is-complete]="vm.schemaWizardStep() > 2"></div>
+          <div class="schema-wizard__step" [class.is-active]="vm.schemaWizardStep() === 3">
+            <span class="schema-wizard__step-badge">3</span>
+            <span>Revisión</span>
+          </div>
+        </div>
+      </section>
+
+      @if (vm.notice) {
+        <section class="notice-banner" role="alert">
+          <span class="material-symbols-outlined">info</span>
+          <p>{{ vm.notice }}</p>
+          <button type="button" class="notice-banner__close" (click)="vm.clearNotice()">Cerrar</button>
+        </section>
+      }
+
+      @if (vm.schemaWizardStep() === 1) {
+        <section class="schema-wizard__panel schema-wizard__panel--source">
+          <label class="field schema-wizard__field--wide">
+            <span>URL del Schema OpenAPI</span>
+            <div class="field__input">
+              <span class="material-symbols-outlined">link</span>
+              <input
+                type="url"
+                [value]="vm.importUrl()"
+                (input)="vm.updateImportUrl($any($event.target).value)"
+                placeholder="https://api.empresa.com/openapi.json"
+              />
+            </div>
+          </label>
+
+          <div class="schema-wizard__hint">
+            <span class="material-symbols-outlined">info</span>
+            <div>
+              <strong>Formatos soportados</strong>
+              <p>
+                Actualmente soportamos especificaciones en formato JSON y YAML. Asegúrese de que la URL sea accesible
+                públicamente o proporcione los encabezados de autenticación necesarios en el siguiente paso.
+              </p>
+            </div>
+          </div>
+        </section>
+      }
+
+      @if (vm.schemaWizardStep() === 2) {
+        <section class="schema-wizard__panel schema-wizard__panel--split schema-wizard__panel--endpoints">
+          <div class="schema-wizard__endpoint-list">
+            @if (vm.draftEndpoints.length > 0) {
+              @for (endpoint of vm.draftEndpoints; track endpoint.path + endpoint.method + $index; let index = $index) {
+                <article class="schema-wizard__endpoint-card" [class.schema-wizard__endpoint-card--muted]="endpoint.status !== 'VISIBLE'">
+                  <div class="schema-wizard__endpoint-head">
+                    <div class="schema-wizard__endpoint-id">
+                      <span class="schema-wizard__method method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
+                      <div>
+                        <h3>{{ endpoint.summary || endpoint.path }}</h3>
+                        <p class="mono">{{ endpoint.path }}</p>
+                      </div>
+                    </div>
+
+                    <span class="schema-wizard__endpoint-status" [class.schema-wizard__endpoint-status--warning]="endpoint.status !== 'VISIBLE'">
+                      {{
+                        endpoint.status === 'VISIBLE'
+                          ? 'Documented'
+                          : endpoint.status === 'OCULTO'
+                            ? 'Hidden'
+                            : endpoint.status === 'PENDIENTE_DOCUMENTACION'
+                              ? 'Needs Documentation'
+                              : 'Needs Update'
+                      }}
+                    </span>
+                  </div>
+
+                  <div class="schema-wizard__endpoint-grid">
+                    <label class="field">
+                      <span>Summary *</span>
+                      <input [value]="endpoint.summary" (input)="vm.updateDraftEndpointField(index, 'summary', $any($event.target).value)" />
+                    </label>
+
+                    <label class="field">
+                      <span>Status</span>
+                      <select [value]="endpoint.status" (change)="vm.updateDraftEndpointStatus(index, $any($event.target).value)">
+                        <option value="VISIBLE">VISIBLE</option>
+                        <option value="OCULTO">OCULTO</option>
+                        <option value="PENDIENTE_DOCUMENTACION">PENDIENTE DOCUMENTACIÓN</option>
+                        <option value="PENDIENTE_ACTUALIZACION">PENDIENTE ACTUALIZACIÓN</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="schema-wizard__endpoint-grid schema-wizard__endpoint-grid--stack">
+                    <label class="field">
+                      <span>Description</span>
+                      <textarea rows="4" [value]="endpoint.description" (input)="vm.updateDraftEndpointField(index, 'description', $any($event.target).value)"></textarea>
+                    </label>
+
+                    <label class="field">
+                      <span>Tags</span>
+                      <input
+                        [value]="endpoint.tags.join(', ')"
+                        (input)="vm.updateDraftEndpointTags(index, $any($event.target).value)"
+                        placeholder="Clientes, Public, Read"
+                      />
+                    </label>
+                  </div>
+
+                  <div class="schema-wizard__endpoint-meta">
+                    <label class="field">
+                      <span>Operation ID</span>
+                      <input
+                        [value]="endpoint.operationId"
+                        (input)="vm.updateDraftEndpointField(index, 'operationId', $any($event.target).value)"
+                        placeholder="findClienteById"
+                      />
+                    </label>
+                    <label class="schema-wizard__toggle">
+                      <input
+                        type="checkbox"
+                        [checked]="endpoint.deprecated"
+                        (change)="vm.updateDraftEndpointDeprecated(index, $any($event.target).checked)"
+                      />
+                      <span>Deprecated</span>
+                    </label>
+                  </div>
+                </article>
+              }
+            } @else {
+              <div class="empty-state empty-state--table">
+                <strong>No endpoints extracted yet.</strong>
+                <p>Return to the source step and provide a valid OpenAPI document.</p>
+              </div>
+            }
+          </div>
+
+          <aside class="schema-wizard__sidecard">
+            <div class="schema-wizard__sidecard-head">
+              <span class="material-symbols-outlined">fact_check</span>
+              <strong>Schema Metadata</strong>
+            </div>
+              <div class="schema-wizard__sidecard-list">
+                <div>
+                  <span>Source URL</span>
+                  <code>{{ vm.schemaSourceUrl() || vm.importUrl() || '—' }}</code>
+                </div>
+                <div>
+                  <span>Total Endpoints</span>
+                  <code>{{ vm.draftEndpoints.length }}</code>
+                </div>
+              </div>
+            </aside>
+          </section>
+      }
+
+      @if (vm.schemaWizardStep() === 3) {
+        <section class="schema-wizard__review-shell">
+          <div class="schema-wizard__success-banner">
+            <div class="schema-wizard__success-icon">
+              <span class="material-symbols-outlined">check</span>
+            </div>
+            <div class="schema-wizard__success-copy">
+              <strong>Todo está listo para publicar</strong>
+              <p>
+                El esquema ha pasado todas las validaciones estructurales. Revisa los detalles abajo antes de
+                confirmar la importación.
+              </p>
+            </div>
+          </div>
+
+          <div class="schema-wizard__review-grid">
+            <article class="schema-wizard__review-card schema-wizard__review-card--summary">
+              <div class="schema-wizard__review-head">
+                <span class="material-symbols-outlined">description</span>
+                <strong>Resumen del Schema</strong>
+              </div>
+
+              <div class="schema-wizard__summary-card schema-wizard__summary-card--large">
+                <span>TÍTULO</span>
+                <strong>{{ vm.schemaTitle() || '—' }}</strong>
+              </div>
+
+              <div class="schema-wizard__summary-block">
+                <span>DESCRIPCIÓN</span>
+                <p>{{ vm.schemaDescription() || '—' }}</p>
+              </div>
+
+              <div class="schema-wizard__summary-metrics">
+                <div class="schema-wizard__summary-card">
+                  <span>VERSIÓN</span>
+                  <strong>{{ vm.schemaVersion() || 'v1' }}</strong>
+                </div>
+                <div class="schema-wizard__summary-card">
+                  <span>VISIBILIDAD</span>
+                  <strong>{{ vm.schemaVisibility() === 'PUBLICO' ? 'Público' : 'Privado' }}</strong>
+                </div>
+              </div>
+
+              <div class="schema-wizard__summary-card schema-wizard__summary-card--source">
+                <span>FORMATO ORIGEN</span>
+                <strong>{{ vm.schemaSourceFormat() }}</strong>
+              </div>
+            </article>
+
+            <article class="schema-wizard__review-card schema-wizard__review-card--endpoints">
+              <div class="schema-wizard__review-head schema-wizard__review-head--endpoints">
+                <div>
+                  <span class="material-symbols-outlined">dataset</span>
+                  <strong>Endpoints Configurados</strong>
+                </div>
+                <span class="schema-wizard__review-pill">100% Válido</span>
+              </div>
+              <p class="schema-wizard__review-subtitle">
+                Se han detectado y validado {{ vm.draftEndpoints.length }} rutas en la especificación.
+              </p>
+
+              <div class="schema-wizard__endpoint-table">
+                <div class="schema-wizard__endpoint-table-head">
+                  <span>MÉTODO</span>
+                  <span>RUTA (PATH)</span>
+                  <span>ESTADO</span>
+                </div>
+                @if (vm.draftEndpoints.length > 0) {
+                  @for (endpoint of vm.draftEndpoints; track endpoint.path + endpoint.method + $index) {
+                    <div class="schema-wizard__endpoint-row">
+                      <div class="schema-wizard__endpoint-method">
+                        <span class="schema-wizard__method method method--{{ endpoint.method.toLowerCase() }}">{{ endpoint.method }}</span>
+                      </div>
+                      <div class="schema-wizard__endpoint-path mono">{{ endpoint.path }}</div>
+                      <div class="schema-wizard__endpoint-state">
+                        <span class="material-symbols-outlined">check_circle</span>
+                      </div>
+                    </div>
+                  }
+                } @else {
+                  <div class="toc__empty toc__empty--soft">
+                    <p>No endpoints were extracted.</p>
+                  </div>
+                }
+              </div>
+            </article>
+          </div>
+
+          <article class="schema-wizard__review-card schema-wizard__review-card--wide">
+            <div class="schema-wizard__review-head">
+              <span class="material-symbols-outlined">dataset</span>
+              <strong>Raw Schema JSON</strong>
+            </div>
+            <textarea class="mono" [value]="vm.schemaRaw()" readonly rows="14"></textarea>
+          </article>
+        </section>
+      }
+    </main>
+
+    <footer class="schema-wizard__footer">
+      <button type="button" class="login-button login-button--secondary" (click)="vm.previousAdminSchemaWizardStep()">
+        <span class="material-symbols-outlined">arrow_back</span>
+        @if (vm.schemaWizardStep() === 1) {
+          Cancelar
+        } @else {
+          Atrás
+        }
+      </button>
+
+      @if (vm.schemaWizardStep() === 1) {
+        <button
+          type="button"
+          class="login-button"
+          [disabled]="vm.loading() || !vm.importUrl().trim()"
+          (click)="vm.continueSchemaWizardFromSource()"
+        >
+          Continuar a Personalización
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </button>
+      } @else if (vm.schemaWizardStep() === 2) {
+        <button type="button" class="login-button" (click)="vm.goToSchemaWizardStep(3)">
+          Continuar a Revisión
+          <span class="material-symbols-outlined">arrow_forward</span>
+        </button>
+      } @else {
+        <button type="button" class="login-button" [disabled]="vm.loading()" (click)="vm.saveSchema()">
+          Confirmar e Importar
+          <span class="material-symbols-outlined">publish</span>
+        </button>
+      }
+    </footer>
+  </section>
+} @else {
+  <section class="section admin-schema-page">
+    <div class="schemas-empty">
       <p class="content-empty__eyebrow">Schemas Management</p>
       <h2>Schemas</h2>
-      <p>Configure and monitor your API definitions and service schemas.</p>
+      <p>All schema creation now happens through the Draft New Schema flow.</p>
+
+      <button type="button" class="login-button" (click)="vm.startCreateSchema()">Draft New Schema</button>
     </div>
-
-    <div class="admin-schema-header__actions">
-      <button type="button" class="login-button" (click)="vm.startCreateSchema()">Import New Schema</button>
-      <button type="button" class="login-button login-button--secondary" (click)="vm.loadAdminWorkspace()">Refresh</button>
-    </div>
-  </div>
-
-  <div class="admin-schema-toolbar">
-    <div class="admin-schema-toolbar__group">
-      <span class="admin-schema-toolbar__label">Visibility:</span>
-      <div class="admin-schema-toolbar__chips">
-        <button
-          type="button"
-          class="admin-schema-chip"
-          [class.is-active]="vm.schemaVisibilityFilter() === 'ALL'"
-          (click)="vm.setVisibilityFilter('ALL')"
-        >
-          All
-        </button>
-        <button
-          type="button"
-          class="admin-schema-chip"
-          [class.is-active]="vm.schemaVisibilityFilter() === 'PUBLICO'"
-          (click)="vm.setVisibilityFilter('PUBLICO')"
-        >
-          Public
-        </button>
-        <button
-          type="button"
-          class="admin-schema-chip"
-          [class.is-active]="vm.schemaVisibilityFilter() === 'PRIVADO'"
-          (click)="vm.setVisibilityFilter('PRIVADO')"
-        >
-          Private
-        </button>
-      </div>
-    </div>
-
-    <div class="admin-schema-toolbar__group admin-schema-toolbar__group--version">
-      <span class="admin-schema-toolbar__label">Version:</span>
-      <select [value]="vm.schemaVersionFilter()" (change)="vm.setVersionFilter($any($event.target).value)">
-        <option value="ALL">All Versions</option>
-        @for (version of vm.schemaVersionOptions; track version) {
-          <option [value]="version">{{ version }}</option>
-        }
-      </select>
-    </div>
-
-    <button type="button" class="admin-schema-toolbar__link" (click)="vm.setVisibilityFilter('ALL')">
-      Reset filters
-    </button>
-  </div>
-
-  <div class="admin-schema-layout">
-    <section class="table-shell admin-schema-table-shell">
-      <table>
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Version</th>
-            <th>Visibility</th>
-            <th>Source URL</th>
-            <th class="admin-table-center">Endpoints</th>
-            <th>Last Update</th>
-            <th class="admin-table-actions">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          @if (vm.filteredSchemas.length > 0) {
-            @for (schema of vm.filteredSchemas; track schema.id) {
-              <tr
-                class="data-table-row admin-schema-row"
-                [class.is-active]="vm.selectedSchema?.id === schema.id"
-                (click)="vm.selectSchema(schema.id)"
-              >
-                <td>
-                  <div class="admin-schema-title">
-                    <span class="material-symbols-outlined admin-schema-title__icon">
-                      {{ schema.visibility === 'PRIVADO' ? 'lock' : 'schema' }}
-                    </span>
-                    <div>
-                      <strong>{{ schema.title }}</strong>
-                      <span>{{ schema.description || 'No description provided.' }}</span>
-                    </div>
-                  </div>
-                </td>
-                <td class="mono text-on-surface-variant">{{ schema.version }}</td>
-                <td>
-                  <span class="admin-schema-badge" [class.admin-schema-badge--private]="schema.visibility === 'PRIVADO'">
-                    {{ schema.visibility === 'PRIVADO' ? 'Private' : 'Public' }}
-                  </span>
-                </td>
-                <td>
-                  <span class="mono admin-schema-url">{{ schema.sourceUrl || '—' }}</span>
-                </td>
-                <td class="admin-table-center">
-                  <strong class="admin-schema-count">{{ vm.schemaCountById(schema.id) }}</strong>
-                </td>
-                <td class="text-on-surface-variant">{{ vm.formatDate(schema.updatedAt || schema.createdAt) }}</td>
-                <td class="admin-table-actions">
-                  <div class="admin-row-actions">
-                    <button type="button" class="icon-button" title="View" (click)="$event.stopPropagation(); vm.selectSchema(schema.id)">
-                      <span class="material-symbols-outlined">visibility</span>
-                    </button>
-                    <button type="button" class="icon-button" title="Refresh" (click)="$event.stopPropagation(); vm.loadAdminWorkspace()">
-                      <span class="material-symbols-outlined">refresh</span>
-                    </button>
-                    <button type="button" class="icon-button" title="Delete" (click)="$event.stopPropagation(); vm.deleteSchema(schema.id)">
-                      <span class="material-symbols-outlined">delete</span>
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            }
-          } @else {
-            <tr>
-              <td colspan="7">
-                <div class="empty-state empty-state--table">
-                  <strong>No schemas found.</strong>
-                  <p>Try another filter or import a new schema.</p>
-                </div>
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </section>
-
-    <aside class="admin-schema-side">
-      <section class="panel-card admin-schema-detail">
-        <div class="panel-card__head">
-          <div>
-            <p class="content-empty__eyebrow">Contextual Details</p>
-            <h3>{{ vm.selectedSchema?.title || 'Select a schema' }}</h3>
-          </div>
-          @if (vm.selectedSchema; as schema) {
-            <span class="admin-schema-badge" [class.admin-schema-badge--private]="schema.visibility === 'PRIVADO'">
-              {{ schema.visibility === 'PRIVADO' ? 'Private' : 'Public' }}
-            </span>
-          }
-        </div>
-
-        @if (vm.selectedSchema; as schema) {
-          <p class="panel-card__copy">{{ schema.description || 'This schema does not have a description yet.' }}</p>
-
-          <div class="admin-schema-stats">
-            <div>
-              <span>Version</span>
-              <strong>{{ schema.version }}</strong>
-            </div>
-            <div>
-              <span>Endpoints</span>
-              <strong>{{ vm.schemaCountById(schema.id) }}</strong>
-            </div>
-            <div>
-              <span>Updated</span>
-              <strong>{{ vm.formatDate(schema.updatedAt || schema.createdAt) }}</strong>
-            </div>
-          </div>
-
-          <div class="admin-schema-details">
-            <div>
-              <span>Source URL</span>
-              <code>{{ schema.sourceUrl || '—' }}</code>
-            </div>
-            <div>
-              <span>Schema ID</span>
-              <code>{{ schema.id }}</code>
-            </div>
-          </div>
-
-          <div class="admin-schema-actions">
-            <button type="button" class="login-button" (click)="vm.startCreateSchema()">New schema</button>
-            <button type="button" class="login-button login-button--secondary" (click)="vm.selectSchema(schema.id)">
-              Edit selected
-            </button>
-            <button type="button" class="login-button login-button--secondary" (click)="vm.deleteSchema(schema.id)">
-              Delete
-            </button>
-          </div>
-        } @else {
-          <div class="toc__empty toc__empty--soft">
-            <p>Select a schema to inspect its details.</p>
-          </div>
-        }
-      </section>
-
-      <section class="panel-card admin-schema-editor">
-        <div class="panel-card__head">
-          <div>
-            <p class="content-empty__eyebrow">Schema Editor</p>
-            <h3>{{ vm.schemaFormMode() === 'edit' ? 'Edit schema' : 'Create schema' }}</h3>
-          </div>
-        </div>
-
-        <div class="panel-form">
-          <div class="panel-grid panel-grid--2">
-            <label class="field">
-              <span>Source URL</span>
-              <input
-                [value]="vm.schemaSourceUrl()"
-                (input)="vm.updateSchemaField('sourceUrl', $any($event.target).value)"
-                placeholder="https://api.payments.io/v1/schema.json"
-              />
-            </label>
-            <label class="field">
-              <span>Version</span>
-              <input [value]="vm.schemaVersion()" (input)="vm.updateSchemaField('version', $any($event.target).value)" placeholder="v2.4.0" />
-            </label>
-          </div>
-
-          <label class="field">
-            <span>Title</span>
-            <input [value]="vm.schemaTitle()" (input)="vm.updateSchemaField('title', $any($event.target).value)" placeholder="Payment Service" />
-          </label>
-
-          <label class="field">
-            <span>Description</span>
-            <input
-              [value]="vm.schemaDescription()"
-              (input)="vm.updateSchemaField('description', $any($event.target).value)"
-              placeholder="Handles payment orchestration and settlement flows."
-            />
-          </label>
-
-          <div class="panel-grid panel-grid--2">
-            <label class="field">
-              <span>Visibility</span>
-              <select [value]="vm.schemaVisibility()" (change)="vm.updateSchemaVisibility($any($event.target).value)">
-                <option value="PUBLICO">PUBLICO</option>
-                <option value="PRIVADO">PRIVADO</option>
-              </select>
-            </label>
-            <label class="field">
-              <span>Mode</span>
-              <input [value]="vm.schemaFormMode() === 'edit' ? 'Edit selected schema' : 'Creating new schema'" readonly />
-            </label>
-          </div>
-
-          <label class="field">
-            <span>Raw Schema JSON</span>
-            <textarea class="mono" rows="12" [value]="vm.schemaRaw()" (input)="vm.updateSchemaRaw($any($event.target).value)"></textarea>
-          </label>
-
-          <div class="admin-actions">
-            <button type="button" class="login-button" [disabled]="vm.loading()" (click)="vm.saveSchema()">
-              {{ vm.schemaFormMode() === 'edit' ? 'Save changes' : 'Create schema' }}
-            </button>
-            <button type="button" class="login-button login-button--secondary" (click)="vm.startCreateSchema()">Reset</button>
-          </div>
-        </div>
-      </section>
-    </aside>
-  </div>
-</section>
+  </section>
+}

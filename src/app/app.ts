@@ -4,6 +4,7 @@ import { environment } from '../environments/environment';
 import {
   type AdminAccessItem,
   type AdminEndpointItem,
+  type AdminEndpointDraft,
   type AdminSchemaItem,
   type AdminView,
   type ApiResponse,
@@ -36,6 +37,7 @@ import { PublicLayoutComponent } from './layouts/public-layout/public-layout.com
 
 @Component({
   selector: 'app-root',
+  standalone: true,
   imports: [
     AdminLayoutComponent,
     AuthLayoutComponent,
@@ -76,8 +78,12 @@ export class App {
   protected readonly adminEndpoints = signal<AdminEndpointItem[]>([]);
   protected readonly adminAccesses = signal<AdminAccessItem[]>([]);
   protected readonly adminExtractPreview = signal<unknown | null>(null);
+  protected readonly adminSchemaWizardOpen = signal(false);
+  protected readonly adminSchemaWizardStep = signal<1 | 2 | 3>(1);
+  protected readonly adminSchemaEditorOpen = signal(false);
   protected readonly adminNotice = signal<string | null>(null);
   protected readonly adminLoading = signal(false);
+  protected readonly adminDraftEndpoints = signal<AdminEndpointDraft[]>([]);
   protected readonly adminSelectedSchemaId = signal<string>('');
   protected readonly adminSelectedEndpointId = signal<string>('');
   protected readonly adminSchemaVisibilityFilter = signal<'ALL' | 'PUBLICO' | 'PRIVADO'>('ALL');
@@ -261,6 +267,14 @@ export class App {
       this.adminEndpoints().find((endpoint) => String(endpoint.id) === this.adminSelectedEndpointId()) ??
       null,
   );
+  protected readonly selectedAdminSchemaEndpoints = computed(() => {
+    const schemaId = Number(this.adminSelectedSchemaId());
+    if (!schemaId) {
+      return [];
+    }
+
+    return this.adminEndpoints().filter((endpoint) => endpoint.schemaId === schemaId);
+  });
   protected readonly adminDashboardVm = computed<DashboardVm>(() => ({
     schemaCount: this.adminSchemaCount(),
     publicSchemaCount: this.adminPublicSchemaCount(),
@@ -272,8 +286,11 @@ export class App {
     coveragePercent: this.adminCoveragePercent(),
     donutDasharray: this.adminDonutDasharray(),
     activityFeed: this.adminActivityFeed(),
+    schemaCountById: (schemaId: number) => this.adminSchemaEndpointCount(schemaId),
     formatDate: (value?: string) => this.formatAdminDate(value),
     navigate: (view: AdminView) => this.setAdminView(view),
+    startCreateSchema: () => this.startCreateSchema(),
+    editSchema: (schemaId: number) => this.openAdminSchemaEditor(schemaId),
     schemas: this.adminSchemas(),
   }));
   protected readonly adminSchemasVm = computed<SchemasVm>(() => ({
@@ -281,6 +298,8 @@ export class App {
     clearNotice: () => this.clearAdminNotice(),
     filteredSchemas: this.filteredAdminSchemas(),
     selectedSchema: this.selectedAdminSchema(),
+    schemaWizardOpen: () => this.adminSchemaWizardOpen(),
+    schemaWizardStep: () => this.adminSchemaWizardStep(),
     schemaVisibilityFilter: () => this.adminSchemaVisibilityFilter(),
     schemaVersionFilter: () => this.adminSchemaVersionFilter(),
     schemaVersionOptions: this.adminSchemaVersionOptions(),
@@ -290,6 +309,18 @@ export class App {
     setVersionFilter: (value: string) => this.setAdminSchemaVersionFilter(value),
     setAdminView: (view: AdminView) => this.setAdminView(view),
     startCreateSchema: () => this.startCreateSchema(),
+    closeSchemaWizard: () => this.closeAdminSchemaWizard(),
+    goToSchemaWizardStep: (step: 1 | 2 | 3) => this.adminSchemaWizardStep.set(step),
+    previousAdminSchemaWizardStep: () => this.previousAdminSchemaWizardStep(),
+    nextAdminSchemaWizardStep: () => this.nextAdminSchemaWizardStep(),
+    continueSchemaWizardFromSource: () => this.continueAdminSchemaWizardFromSource(),
+    draftEndpoints: this.adminDraftEndpoints(),
+    updateDraftEndpointField: (index: number, field: 'summary' | 'description' | 'operationId', value: string) =>
+      this.updateAdminDraftEndpointField(index, field, value),
+    updateDraftEndpointStatus: (index: number, value: string) => this.updateAdminDraftEndpointStatus(index, value),
+    updateDraftEndpointTags: (index: number, value: string) => this.updateAdminDraftEndpointTags(index, value),
+    updateDraftEndpointDeprecated: (index: number, value: boolean) =>
+      this.updateAdminDraftEndpointDeprecated(index, value),
     loadAdminWorkspace: () => void this.loadAdminWorkspace(),
     selectSchema: (schemaId: number) => this.selectAdminSchema(schemaId),
     deleteSchema: (schemaId: number) => void this.deleteAdminSchema(schemaId),
@@ -306,6 +337,12 @@ export class App {
     schemaVersion: () => this.adminSchemaVersion,
     schemaVisibility: () => this.adminSchemaVisibility,
     schemaRaw: () => this.adminSchemaRawSchemaText,
+    schemaSourceFormat: () => this.adminSchemaSourceFormat(),
+    importUrl: () => this.adminImportUrl,
+    importPreviewText: this.adminImportPreviewText,
+    extractPreview: () => this.adminExtractPreview(),
+    jsonPreview: (value: unknown) => this.jsonPreview(value),
+    updateImportUrl: (value: string) => this.updateAdminImportUrl(value),
     loading: () => this.adminLoading(),
   }));
   protected readonly filteredAdminSchemas = computed(() => {
@@ -405,6 +442,29 @@ export class App {
     if (view === 'schemas' && this.adminSchemas().length === 0) {
       void this.loadAdminWorkspace();
     }
+  }
+
+  protected openAdminSchemaEditor(schemaId: number): void {
+    this.adminSchemaWizardOpen.set(false);
+    this.selectAdminSchema(schemaId, true);
+    this.adminSchemaEditorOpen.set(true);
+    this.adminNotice.set(null);
+
+    const schemaEndpoints = this.adminEndpoints().filter((endpoint) => endpoint.schemaId === schemaId);
+    if (schemaEndpoints.length > 0) {
+      this.selectAdminEndpoint(schemaEndpoints[0].id);
+    } else {
+      this.adminSelectedEndpointId.set('');
+      this.resetAdminEndpointForm();
+      this.adminEndpointSchemaId = String(schemaId);
+    }
+  }
+
+  protected closeAdminSchemaEditor(): void {
+    this.adminSchemaEditorOpen.set(false);
+    this.adminSelectedEndpointId.set('');
+    this.resetAdminEndpointForm();
+    this.adminNotice.set(null);
   }
 
   protected setAdminSchemaVisibilityFilter(value: 'ALL' | 'PUBLICO' | 'PRIVADO'): void {
@@ -517,11 +577,13 @@ export class App {
     this.adminEndpoints.set([]);
     this.adminAccesses.set([]);
     this.adminExtractPreview.set(null);
+    this.adminDraftEndpoints.set([]);
     this.adminNotice.set(null);
     this.adminLoading.set(false);
     this.adminSelectedSchemaId.set('');
     this.adminSelectedEndpointId.set('');
     this.adminView.set('dashboard');
+    this.closeAdminSchemaWizard();
     this.closeLoginModal();
     await this.refreshCatalog();
   }
@@ -559,6 +621,7 @@ export class App {
     this.notice.set(null);
     this.activeEndpointId.set(endpointId);
     this.openServiceIds.set([doc.serviceId]);
+    this.activeSection.set('overview');
 
     this.contentScroll()?.nativeElement.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -566,6 +629,34 @@ export class App {
   protected scrollTo(sectionId: SectionId): void {
     this.activeSection.set(sectionId);
     document.getElementById(sectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  protected updateActiveSection(): void {
+    const container = this.contentScroll()?.nativeElement;
+    const doc = this.activeDoc();
+    if (!container || !doc) {
+      return;
+    }
+
+    const sections = this.docSections(doc);
+    const containerTop = container.getBoundingClientRect().top;
+    let current = sections[0]?.id ?? 'overview';
+
+    for (const section of sections) {
+      const element = container.querySelector<HTMLElement>(`#${section.id}`);
+      if (!element) {
+        continue;
+      }
+
+      const distanceFromTop = element.getBoundingClientRect().top - containerTop;
+      if (distanceFromTop <= 180) {
+        current = section.id;
+      } else {
+        break;
+      }
+    }
+
+    this.activeSection.set(current);
   }
 
   protected clearNotice(): void {
@@ -584,6 +675,20 @@ export class App {
   }
 
   protected handleKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      if (this.adminSchemaEditorOpen()) {
+        event.preventDefault();
+        this.closeAdminSchemaEditor();
+        return;
+      }
+
+      if (this.adminSchemaWizardOpen()) {
+        event.preventDefault();
+        this.closeAdminSchemaWizard();
+        return;
+      }
+    }
+
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
       event.preventDefault();
       this.searchInput()?.nativeElement.focus();
@@ -655,6 +760,29 @@ export class App {
     }
   }
 
+  protected adminSchemaSourceFormat(): string {
+    const sourceUrl = (this.adminSchemaSourceUrl || this.adminImportUrl || '').toLowerCase();
+    const rawSchema = this.adminSchemaRawSchemaText.trim();
+
+    if (sourceUrl.endsWith('.yaml') || sourceUrl.endsWith('.yml')) {
+      return 'OpenAPI 3.0.x (YAML)';
+    }
+
+    if (sourceUrl.endsWith('.json')) {
+      return 'OpenAPI 3.0.x (JSON)';
+    }
+
+    if (rawSchema.startsWith('{')) {
+      return 'OpenAPI 3.1.x (JSON)';
+    }
+
+    if (rawSchema.includes('\nopenapi:') || rawSchema.startsWith('openapi:')) {
+      return 'OpenAPI 3.0.x (YAML)';
+    }
+
+    return 'OpenAPI';
+  }
+
   protected formatAdminDate(value?: string): string {
     if (!value) {
       return '—';
@@ -710,10 +838,55 @@ export class App {
   }
 
   protected startCreateSchema(): void {
+    this.adminView.set('schemas');
     this.adminSchemaFormMode = 'create';
     this.adminSchemaEditingId = null;
     this.resetAdminSchemaForm();
+    this.adminImportUrl = '';
+    this.adminImportPreviewText = '';
+    this.adminExtractPreview.set(null);
+    this.adminDraftEndpoints.set([]);
+    this.adminSchemaWizardOpen.set(true);
+    this.adminSchemaWizardStep.set(1);
     this.adminNotice.set(null);
+  }
+
+  protected closeAdminSchemaWizard(preserveNotice = false): void {
+    this.adminSchemaWizardOpen.set(false);
+    this.adminSchemaWizardStep.set(1);
+    this.adminDraftEndpoints.set([]);
+    if (!preserveNotice) {
+      this.adminNotice.set(null);
+    }
+    this.adminView.set('dashboard');
+  }
+
+  protected async continueAdminSchemaWizardFromSource(): Promise<void> {
+    await this.extractAdminSchema();
+
+    if (!this.adminExtractPreview()) {
+      return;
+    }
+
+    this.createSchemaFormFromPreview();
+    this.adminSchemaWizardStep.set(2);
+  }
+
+  protected previousAdminSchemaWizardStep(): void {
+    const current = this.adminSchemaWizardStep();
+    if (current <= 1) {
+      this.closeAdminSchemaWizard();
+      return;
+    }
+
+    this.adminSchemaWizardStep.set((current - 1) as 1 | 2 | 3);
+  }
+
+  protected nextAdminSchemaWizardStep(): void {
+    const current = this.adminSchemaWizardStep();
+    if (current < 3) {
+      this.adminSchemaWizardStep.set((current + 1) as 1 | 2 | 3);
+    }
   }
 
   protected selectAdminSchema(schemaId: number, loadAccesses = true): void {
@@ -746,25 +919,83 @@ export class App {
     this.adminNotice.set(null);
 
     try {
+      const isWizardCreate = this.adminSchemaWizardOpen() && this.adminSchemaFormMode === 'create';
       const isEdit = this.adminSchemaFormMode === 'edit' && this.adminSchemaEditingId !== null;
-      const response = isEdit
-        ? await this.requestJson<ApiResponse<AdminSchemaItem>>(`/admin/schemas/${this.adminSchemaEditingId}`, {
-            method: 'PUT',
-            body: JSON.stringify(payload),
-          })
-        : await this.requestJson<ApiResponse<AdminSchemaItem>>('/admin/schemas', {
-            method: 'POST',
-            body: JSON.stringify(payload),
-          });
 
-      if (response.data) {
-        await this.loadAdminWorkspace();
-        if (isEdit) {
+      if (!isWizardCreate) {
+        const response = isEdit
+          ? await this.requestJson<ApiResponse<AdminSchemaItem>>(`/admin/schemas/${this.adminSchemaEditingId}`, {
+              method: 'PUT',
+              body: JSON.stringify(payload),
+            })
+          : await this.requestJson<ApiResponse<AdminSchemaItem>>('/admin/schemas', {
+              method: 'POST',
+              body: JSON.stringify(payload),
+            });
+
+        if (response.data) {
+          await this.loadAdminWorkspace();
           this.selectAdminSchema(response.data.id, false);
-        } else {
-          this.startCreateSchema();
+          if (this.adminSchemaWizardOpen()) {
+            this.closeAdminSchemaWizard();
+          }
+        }
+        return;
+      }
+
+      const schemaResponse = await this.requestJson<ApiResponse<AdminSchemaItem>>('/admin/schemas', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+
+      const schemaId = schemaResponse.data?.id;
+      if (!schemaId) {
+        throw new Error('No fue posible obtener el schemaId creado.');
+      }
+
+      const drafts = this.adminDraftEndpoints();
+      const detected = drafts.length;
+      let attempted = 0;
+      let saved = 0;
+      let failed = 0;
+      const failureMessages: string[] = [];
+
+      for (const [index, endpoint] of drafts.entries()) {
+        attempted += 1;
+        const endpointPayload = this.buildAdminEndpointCreatePayload(schemaId, endpoint);
+
+        if (!endpointPayload) {
+          failed += 1;
+          failureMessages.push(`Endpoint ${index + 1}: datos incompletos o inválidos.`);
+          continue;
+        }
+
+        try {
+          await this.requestJson<ApiResponse<AdminEndpointItem>>('/admin/endpoints', {
+            method: 'POST',
+            body: JSON.stringify(endpointPayload),
+          });
+          saved += 1;
+        } catch (error) {
+          failed += 1;
+          const message = error instanceof Error ? error.message : 'No fue posible registrar el endpoint.';
+          failureMessages.push(`${endpoint.method} ${endpoint.path}: ${message}`);
         }
       }
+
+      const persistedEndpoints = await this.fetchAdminEndpointsBySchemaId(schemaId);
+
+      await this.loadAdminWorkspace();
+      this.selectAdminSchema(schemaId, false);
+      this.closeAdminSchemaWizard(true);
+      this.adminSchemaEditorOpen.set(false);
+
+      const summary = `Importación completada. Detectados: ${detected}. Intentados: ${attempted}. Guardados: ${saved}. Fallidos: ${failed}. Persistidos en backend: ${persistedEndpoints.length}.`;
+      this.adminNotice.set(
+        failureMessages.length > 0
+          ? `${summary} Primeras incidencias: ${failureMessages.slice(0, 3).join(' | ')}`
+          : summary,
+      );
     } catch (error) {
       this.adminNotice.set(error instanceof Error ? error.message : 'No fue posible guardar el schema.');
     } finally {
@@ -982,16 +1213,27 @@ export class App {
       version?: string;
       visibility?: 'PUBLICO' | 'PRIVADO';
       rawSchema?: unknown;
+      schema?: unknown;
+      endpoints?: unknown[];
     };
 
     this.adminSchemaFormMode = 'create';
     this.adminSchemaEditingId = null;
     this.adminSchemaSourceUrl = record.sourceUrl ?? this.adminImportUrl ?? '';
-    this.adminSchemaTitle = record.title ?? '';
-    this.adminSchemaDescription = record.description ?? '';
-    this.adminSchemaVersion = record.version ?? 'v1';
-    this.adminSchemaVisibility = record.visibility ?? 'PUBLICO';
-    this.adminSchemaRawSchemaText = JSON.stringify(record.rawSchema ?? preview, null, 2);
+    const schemaRecord = (record.schema ?? record.rawSchema ?? preview) as Record<string, unknown>;
+    this.adminSchemaTitle =
+      this.pickString(schemaRecord, ['title', 'name', 'info.title', 'info.name', 'schema.title']) || 'Imported Schema';
+    this.adminSchemaDescription =
+      this.pickString(schemaRecord, ['description', 'summary', 'info.description', 'schema.description']) ||
+      'Imported from OpenAPI source.';
+    this.adminSchemaVersion =
+      this.pickString(schemaRecord, ['version', 'info.version', 'schema.version']) || record.version || 'v1';
+    this.adminSchemaVisibility =
+      record.visibility ??
+      this.normalizeVisibility(this.pickString(schemaRecord, ['visibility', 'access'])) ??
+      'PUBLICO';
+    this.adminSchemaRawSchemaText = JSON.stringify(record.schema ?? {}, null, 2);
+    this.adminDraftEndpoints.set(this.normalizeDraftEndpoints(record.endpoints));
   }
 
   protected updateAdminSchemaField(field: 'sourceUrl' | 'title' | 'description' | 'version', value: string): void {
@@ -1049,6 +1291,10 @@ export class App {
     this.adminEndpointResponsesText = value;
   }
 
+  protected resetAdminEndpointEditor(): void {
+    this.resetAdminEndpointForm();
+  }
+
   protected updateAdminAccessSchemaId(value: string): void {
     this.adminAccessSchemaId = value;
   }
@@ -1064,6 +1310,53 @@ export class App {
 
   protected updateAdminImportUrl(value: string): void {
     this.adminImportUrl = value;
+  }
+
+  protected updateAdminDraftEndpointField(
+    index: number,
+    field: 'summary' | 'description' | 'operationId',
+    value: string,
+  ): void {
+    this.adminDraftEndpoints.update((current) =>
+      current.map((endpoint, currentIndex) =>
+        currentIndex === index ? { ...endpoint, [field]: value } : endpoint,
+      ),
+    );
+  }
+
+  protected updateAdminDraftEndpointStatus(index: number, value: string): void {
+    this.adminDraftEndpoints.update((current) =>
+      current.map((endpoint, currentIndex) =>
+        currentIndex === index
+          ? {
+              ...endpoint,
+              status: this.normalizeEndpointStatus(value),
+            }
+          : endpoint,
+      ),
+    );
+  }
+
+  protected updateAdminDraftEndpointTags(index: number, value: string): void {
+    this.adminDraftEndpoints.update((current) =>
+      current.map((endpoint, currentIndex) =>
+        currentIndex === index
+          ? {
+              ...endpoint,
+              tags: value
+                .split(',')
+                .map((tag) => tag.trim())
+                .filter(Boolean),
+            }
+          : endpoint,
+      ),
+    );
+  }
+
+  protected updateAdminDraftEndpointDeprecated(index: number, value: boolean): void {
+    this.adminDraftEndpoints.update((current) =>
+      current.map((endpoint, currentIndex) => (currentIndex === index ? { ...endpoint, deprecated: value } : endpoint)),
+    );
   }
 
   private resetAdminSchemaForm(): void {
@@ -1173,6 +1466,180 @@ export class App {
       this.adminNotice.set('Parameters, request body y responses deben ser JSON válidos.');
       return null;
     }
+  }
+
+  private buildAdminEndpointCreatePayload(
+    schemaId: number,
+    endpoint: AdminEndpointDraft,
+  ):
+    | {
+        schemaId: number;
+        path: string;
+        method: HttpMethod;
+        summary: string;
+        description: string;
+        operationId: string;
+        tags: string[];
+        deprecated: boolean;
+        status: AdminEndpointItem['status'];
+        parameters: DocumentedEndpoint['parameters'];
+        requestBody: DocumentedEndpoint['requestBody'];
+        responses: DocumentedEndpoint['responses'];
+      }
+    | null {
+    if (!schemaId) {
+      return null;
+    }
+
+    const path = endpoint.path.trim();
+    if (!path) {
+      return null;
+    }
+
+    const method = this.normalizeMethod(endpoint.method);
+    const tags = (endpoint.tags ?? []).map((tag) => String(tag).trim()).filter(Boolean);
+    const normalizedTags = tags.length > 0 ? tags : [this.endpointTagFromPath(path)];
+    if (!normalizedTags.length) {
+      return null;
+    }
+
+    return {
+      schemaId,
+      path,
+      method,
+      summary: endpoint.summary.trim(),
+      description: endpoint.description.trim(),
+      operationId: endpoint.operationId.trim(),
+      tags: normalizedTags,
+      deprecated: Boolean(endpoint.deprecated),
+      status: this.normalizeEndpointStatus(endpoint.status),
+      parameters: endpoint.parameters ?? [],
+      requestBody: endpoint.requestBody ?? null,
+      responses: endpoint.responses ?? [],
+    };
+  }
+
+  private normalizeEndpointStatus(value: string): AdminEndpointItem['status'] {
+    const normalized = value.toUpperCase().replace(/\s+/g, '_');
+    if (normalized === 'OCULTO') {
+      return 'OCULTO';
+    }
+    if (normalized === 'PENDIENTE_ACTUALIZACION') {
+      return 'PENDIENTE_ACTUALIZACION';
+    }
+    if (normalized === 'PENDIENTE_DOCUMENTACION') {
+      return 'PENDIENTE_DOCUMENTACION';
+    }
+    if (normalized === 'PENDIENTE') {
+      return 'PENDIENTE_DOCUMENTACION';
+    }
+    return 'VISIBLE';
+  }
+
+  private normalizeVisibility(value?: string | null): 'PUBLICO' | 'PRIVADO' | null {
+    if (!value) {
+      return null;
+    }
+
+    const normalized = value.toUpperCase();
+    if (normalized.includes('PRIV')) {
+      return 'PRIVADO';
+    }
+
+    if (normalized.includes('PUB')) {
+      return 'PUBLICO';
+    }
+
+    return null;
+  }
+
+  private pickString(record: Record<string, unknown>, keys: string[]): string {
+    for (const key of keys) {
+      const value = key.split('.').reduce<unknown>((current, part) => {
+        if (!current || typeof current !== 'object') {
+          return undefined;
+        }
+
+        return (current as Record<string, unknown>)[part];
+      }, record);
+
+      if (typeof value === 'string' && value.trim()) {
+        return value.trim();
+      }
+    }
+
+    return '';
+  }
+
+  private normalizeDraftEndpoints(items: unknown): AdminEndpointDraft[] {
+    const list = Array.isArray(items) ? items : [];
+
+    return list.map((item, index) => {
+      const record = item as Record<string, unknown>;
+      const path = this.pickString(record, ['path', 'route', 'url']) || `/endpoint-${index + 1}`;
+      const method = this.normalizeMethod(this.pickString(record, ['method', 'httpMethod']) || 'GET');
+      const summary =
+        this.pickString(record, ['summary', 'title', 'name']) ||
+        this.endpointLabelFromPath(path, method, this.pickString(record, ['operationId']));
+      const description = this.pickString(record, ['description', 'detail', 'notes']);
+      const operationId = this.pickString(record, ['operationId', 'operation_id']);
+      const tagsRaw = record['tags'];
+      const tags = Array.isArray(tagsRaw)
+        ? tagsRaw.map((tag) => String(tag).trim()).filter(Boolean)
+        : this.pickString(record, ['tags'])
+            .split(',')
+            .map((tag) => tag.trim())
+            .filter(Boolean);
+      const normalizedTags = tags.length > 0 ? tags : [this.endpointTagFromPath(path)];
+      const deprecated = Boolean(record['deprecated']);
+      const status = this.normalizeEndpointStatus(this.pickString(record, ['status'])) || 'VISIBLE';
+      const parameters = Array.isArray(record['parameters'])
+        ? (record['parameters'] as DocumentedEndpoint['parameters'])
+        : [];
+      const requestBody = record['requestBody']
+        ? (record['requestBody'] as DocumentedEndpoint['requestBody'])
+        : null;
+      const responses = Array.isArray(record['responses'])
+        ? (record['responses'] as DocumentedEndpoint['responses'])
+        : [];
+
+      return {
+        path,
+        method,
+        summary,
+        description,
+        operationId,
+        tags: normalizedTags,
+        deprecated,
+        status,
+        parameters,
+        requestBody,
+        responses,
+      };
+    });
+  }
+
+  private endpointTagFromPath(path: string): string {
+    const segments = path
+      .split('/')
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter((part) => !/^v\d+$/i.test(part) && part.toLowerCase() !== 'api');
+
+    const base = segments[0] ?? 'General';
+    return base
+      .replace(/[-_]+/g, ' ')
+      .replace(/\b\w/g, (char) => char.toUpperCase())
+      .trim();
+  }
+
+  private async fetchAdminEndpointsBySchemaId(schemaId: number): Promise<AdminEndpointItem[]> {
+    if (!schemaId) {
+      return [];
+    }
+
+    const response = await this.requestJson<ApiResponse<AdminEndpointItem[]>>('/admin/endpoints');
+    return (response.data ?? []).filter((endpoint) => endpoint.schemaId === schemaId);
   }
 
   private normalizeAccessList(items: unknown): AdminAccessItem[] {
@@ -1500,6 +1967,10 @@ export class App {
 
     if (this.authToken()) {
       headers['Authorization'] = `Bearer ${this.authToken()}`;
+    }
+
+    if (init?.body && !headers['Content-Type'] && !(init.headers as Record<string, string> | undefined)?.['Content-Type']) {
+      headers['Content-Type'] = 'application/json';
     }
 
     const response = await fetch(`${this.apiBaseUrl}${path}`, {

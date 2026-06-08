@@ -21,8 +21,11 @@ export interface DashboardVm {
   coveragePercent: number;
   donutDasharray: string;
   activityFeed: DashboardActivityItem[];
+  schemaCountById: (schemaId: number) => number;
   formatDate: (value?: string) => string;
   navigate: (view: AdminView) => void;
+  startCreateSchema: () => void;
+  editSchema: (schemaId: number) => void;
   schemas: AdminSchemaItem[];
 }
 

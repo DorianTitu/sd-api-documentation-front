@@ -196,3 +196,17 @@ export interface AdminAccessItem {
   assignedAt?: string;
   grantedAt?: string;
 }
+
+export interface AdminEndpointDraft {
+  path: string;
+  method: HttpMethod;
+  summary: string;
+  description: string;
+  operationId: string;
+  tags: string[];
+  deprecated: boolean;
+  status: AdminEndpointItem['status'];
+  parameters: DocumentedEndpoint['parameters'];
+  requestBody: DocumentedEndpoint['requestBody'];
+  responses: DocumentedEndpoint['responses'];
+}
