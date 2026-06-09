@@ -413,30 +413,32 @@
               }
             </nav>
 
-            <section class="hero" id="overview">
-              <h1>{{ doc.title }}</h1>
-              <p>{{ doc.summary }}</p>
+            <section class="hero hero--with-search" id="overview">
+              <div class="hero__content">
+                <h1>{{ doc.title }}</h1>
+                <p>{{ doc.summary }}</p>
 
-              <div class="hero__meta">
-                <span class="meta-pill">Versión {{ doc.version }}</span>
-                @if (doc.private) {
-                  <span class="meta-pill meta-pill--private">Privado</span>
-                } @else {
-                  <span class="meta-pill">Público</span>
-                }
+                <div class="hero__meta">
+                  <span class="meta-pill">Versión {{ doc.version }}</span>
+                  @if (doc.private) {
+                    <span class="meta-pill meta-pill--private">Privado</span>
+                  } @else {
+                    <span class="meta-pill">Público</span>
+                  }
+                </div>
               </div>
-            </section>
 
-            <label class="document__search" aria-label="Search in document">
-              <span class="material-symbols-outlined search__icon">search</span>
-              <input
-                #documentSearchInput
-                type="text"
-                placeholder="Buscar en documento"
-                [value]="documentSearchQuery()"
-                (input)="setDocumentSearchQuery(documentSearchInput.value)"
-              />
-            </label>
+              <label class="hero__search" aria-label="Search in document">
+                <span class="material-symbols-outlined search__icon">search</span>
+                <input
+                  #documentSearchInput
+                  type="text"
+                  placeholder="Buscar en documento"
+                  [value]="documentSearchQuery()"
+                  (input)="setDocumentSearchQuery(documentSearchInput.value)"
+                />
+              </label>
+            </section>
 
             @if (notice()) {
               <section class="notice-banner" role="alert">
