@@ -1818,6 +1818,35 @@ export class App {
     return value.toLowerCase().trim();
   }
 
+  protected shouldShowParameter(param: ParameterRow): boolean {
+    const query = this.normalize(this.documentSearchQuery());
+    if (!query) return true;
+    return this.normalize(param.name).includes(query) ||
+           this.normalize(param.description).includes(query);
+  }
+
+  protected shouldShowHeader(header: HeaderRow): boolean {
+    const query = this.normalize(this.documentSearchQuery());
+    if (!query) return true;
+    return this.normalize(header.name).includes(query) ||
+           this.normalize(header.description).includes(query);
+  }
+
+  protected shouldShowField(field: ParameterRow): boolean {
+    const query = this.normalize(this.documentSearchQuery());
+    if (!query) return true;
+    return this.normalize(field.name).includes(query) ||
+           this.normalize(field.description).includes(query);
+  }
+
+  protected shouldShowResponse(response: ResponseRow): boolean {
+    const query = this.normalize(this.documentSearchQuery());
+    if (!query) return true;
+    return this.normalize(response.status).includes(query) ||
+           this.normalize(response.label).includes(query) ||
+           this.normalize(response.body).includes(query);
+  }
+
   private normalizeMethod(method: string): HttpMethod {
     const normalized = method.toUpperCase();
     return (['GET', 'POST', 'PUT', 'DELETE'].includes(normalized) ? normalized : 'GET') as HttpMethod;
