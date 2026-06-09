@@ -1,7 +1,6 @@
-import { Component, ElementRef, computed, effect, signal, viewChild, inject } from '@angular/core';
+import { Component, ElementRef, computed, effect, signal, viewChild } from '@angular/core';
 
 import { environment } from '../environments/environment';
-import { AuthService, SchemasService, EndpointsService, AccessesService } from './core/services';
 import {
   type AdminAccessItem,
   type AdminEndpointItem,
@@ -50,18 +49,12 @@ import { PublicLayoutComponent } from './layouts/public-layout/public-layout.com
   styleUrl: './app.scss',
 })
 export class App {
-  private readonly authSvc = inject(AuthService);
-  private readonly schemasSvc = inject(SchemasService);
-  private readonly endpointsSvc = inject(EndpointsService);
-  private readonly accessesSvc = inject(AccessesService);
   protected readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   protected readonly contentScroll = viewChild<ElementRef<HTMLElement>>('contentScroll');
 
   protected readonly apiBaseUrl = environment.apiBaseUrl;
   protected readonly activeSection = signal<SectionId>('overview');
   protected readonly searchQuery = signal('');
-  protected readonly globalSearchQuery = signal('');
-  protected readonly documentSearchQuery = signal('');
   protected readonly selectedVersion = signal<ApiVersion>('v2');
   protected readonly isAuthenticated = signal(false);
   protected readonly authToken = signal('');
@@ -194,46 +187,6 @@ export class App {
 
             const doc = this.getDocById(endpoint.id);
             return doc ? this.docMatches(doc, query) : false;
-          })
-          .map((endpoint) => ({
-            ...endpoint,
-            active: endpoint.id === currentActive,
-          })),
-      }))
-      .filter((service) => (service.locked ? true : service.endpoints.length > 0 || !query));
-  });
-
-  protected readonly filteredServices = computed(() => {
-    const query = this.normalize(this.globalSearchQuery());
-    const currentActive = this.activeEndpointId();
-    const openIds = new Set(this.openServiceIds());
-
-    return this.services()
-      .filter((service) => {
-        if (!query) {
-          return true;
-        }
-
-        const serviceMatches = this.normalize(service.title).includes(query);
-        const endpointMatches = service.endpoints.some((endpoint) => {
-          const doc = this.getDocById(endpoint.id);
-          return doc ? this.normalize(doc.title).includes(query) || this.normalize(doc.path).includes(query) : false;
-        });
-
-        return serviceMatches || endpointMatches;
-      })
-      .map((service) => ({
-        ...service,
-        locked: service.locked && !this.isAuthenticated(),
-        expanded: query ? true : openIds.has(service.id),
-        endpoints: service.endpoints
-          .filter((endpoint) => {
-            if (!query) {
-              return true;
-            }
-
-            const doc = this.getDocById(endpoint.id);
-            return doc ? this.normalize(doc.title).includes(query) || this.normalize(doc.path).includes(query) : false;
           })
           .map((endpoint) => ({
             ...endpoint,
@@ -637,14 +590,6 @@ export class App {
 
   protected setSearchQuery(value: string): void {
     this.searchQuery.set(value);
-  }
-
-  protected setGlobalSearchQuery(value: string): void {
-    this.globalSearchQuery.set(value);
-  }
-
-  protected setDocumentSearchQuery(value: string): void {
-    this.documentSearchQuery.set(value);
   }
 
   protected toggleService(serviceId: string): void {

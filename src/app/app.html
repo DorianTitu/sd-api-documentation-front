@@ -18,38 +18,23 @@
         </div>
       </div>
     } @else {
-      <nav class="topbar__links" aria-label="Documentation sections">
-        <a href="#" class="topbar__link topbar__link--active">Docs</a>
-        <a href="#" class="topbar__link">Changelog</a>
-      </nav>
+      @if (!isAuthenticated()) {
+        <button type="button" class="topbar__login-btn" (click)="openLoginModal()">
+          <span class="material-symbols-outlined">login</span>
+          <span>Iniciar sesión</span>
+        </button>
+      }
 
-      <label class="topbar__search" aria-label="Search documentation">
-        <span class="material-symbols-outlined search__icon">search</span>
-        <input
-          #searchInput
-          type="text"
-          [placeholder]="isAdmin() ? 'Buscar schemas' : 'Buscar documentación'"
-          [value]="searchQuery()"
-          (input)="setSearchQuery(searchInput.value)"
-        />
-      </label>
-
-      <div class="topbar__actions">
-        @if (isAuthenticated()) {
-          <div class="user-chip">
-            <div class="user-chip__avatar">{{ userInitials() }}</div>
-            <div class="user-chip__meta">
-              <strong>{{ userName() }}</strong>
-              <span>{{ userRoleLabel() }}</span>
-              <button type="button" (click)="toggleSession()">Salir</button>
-            </div>
+      @if (isAuthenticated()) {
+        <div class="user-chip">
+          <div class="user-chip__avatar">{{ userInitials() }}</div>
+          <div class="user-chip__meta">
+            <strong>{{ userName() }}</strong>
+            <span>{{ userRoleLabel() }}</span>
+            <button type="button" (click)="toggleSession()">Salir</button>
           </div>
-        } @else {
-          <button type="button" class="icon-circle" aria-label="Sign in" (click)="openLoginModal()">
-            <span class="material-symbols-outlined">account_circle</span>
-          </button>
-        }
-      </div>
+        </div>
+      }
     }
   </header>
 
@@ -330,9 +315,20 @@
           <span class="sidebar__eyebrow">Servicios</span>
         </div>
 
+        <label class="sidebar__search" aria-label="Search microservices and endpoints">
+          <span class="material-symbols-outlined search__icon">search</span>
+          <input
+            #globalSearchInput
+            type="text"
+            placeholder="Buscar APIs y endpoints"
+            [value]="globalSearchQuery()"
+            (input)="setGlobalSearchQuery(globalSearchInput.value)"
+          />
+        </label>
+
       <nav class="sidebar__nav" aria-label="Microservices catalog">
-        @if (visibleServices().length > 0) {
-          @for (service of visibleServices(); track service.id) {
+        @if (filteredServices().length > 0) {
+          @for (service of filteredServices(); track service.id) {
             <section class="service-group" [class.service-group--open]="service.expanded">
               <button
                 type="button"
@@ -403,6 +399,17 @@
                 }
               </div>
             </section>
+
+            <label class="document__search" aria-label="Search in document">
+              <span class="material-symbols-outlined search__icon">search</span>
+              <input
+                #documentSearchInput
+                type="text"
+                placeholder="Buscar en documento"
+                [value]="documentSearchQuery()"
+                (input)="setDocumentSearchQuery(documentSearchInput.value)"
+              />
+            </label>
 
             @if (notice()) {
               <section class="notice-banner" role="alert">
