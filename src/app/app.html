@@ -446,109 +446,121 @@
               </section>
             }
 
-            <section class="section" id="parameters">
-              <h2 class="section-heading section-heading--parameters">
-                <span class="material-symbols-outlined section-heading__icon">tune</span>
-                <span>Parameters</span>
-              </h2>
-              @if (doc.parameters.length > 0) {
-                <div class="table-shell">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Requirement</th>
-                        <th>Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (parameter of doc.parameters; track parameter.name) {
-                        <tr>
-                          <td class="mono accent">{{ parameter.name }}</td>
-                          <td><span class="chip">{{ parameter.type }}</span></td>
-                          <td>
-                            <span class="req" [class.req--required]="parameter.requirement === 'Required'">
-                              {{ parameter.requirement }}
-                            </span>
-                          </td>
-                          <td>{{ parameter.description }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              } @else {
-                <p class="empty-state">Este endpoint no declara parámetros de consulta.</p>
-              }
-            </section>
+            <section class="request-section" id="request">
+              <div class="request-header">
+                <h2 class="section-heading">
+                  <span class="material-symbols-outlined section-heading__icon">input</span>
+                  <span>Request</span>
+                </h2>
+              </div>
 
-            <section class="section" id="headers">
-              <h2 class="section-heading section-heading--headers">
-                <span class="material-symbols-outlined section-heading__icon">data_object</span>
-                <span>Headers</span>
-              </h2>
-              @if (doc.headers.length > 0) {
-                <div class="table-shell">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Value</th>
-                        <th>Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (header of doc.headers; track header.name) {
-                        <tr>
-                          <td class="mono accent">{{ header.name }}</td>
-                          <td class="mono">{{ header.value }}</td>
-                          <td>{{ header.description }}</td>
-                        </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              } @else {
-                <p class="empty-state">No se requieren headers personalizados para este endpoint.</p>
-              }
-            </section>
+              <div class="request-tabs">
+                @if (doc.parameters.length > 0) {
+                  <button class="request-tab is-active">
+                    <span>Query Parameters</span>
+                    <span class="request-tab__badge">{{ doc.parameters.length }}</span>
+                  </button>
+                }
+                @if (doc.headers.length > 0) {
+                  <button class="request-tab is-active">
+                    <span>Headers</span>
+                    <span class="request-tab__badge">{{ doc.headers.length }}</span>
+                  </button>
+                }
+                @if (doc.requestBody.length > 0) {
+                  <button class="request-tab is-active">
+                    <span>Body</span>
+                    <span class="request-tab__badge">{{ doc.requestBody.length }}</span>
+                  </button>
+                }
+              </div>
 
-            <section class="section" id="request-body">
-              <h2 class="section-heading section-heading--request-body">
-                <span class="material-symbols-outlined section-heading__icon">edit_note</span>
-                <span>Request Body</span>
-              </h2>
-              @if (doc.requestBody.length > 0) {
-                <div class="table-shell">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Type</th>
-                        <th>Requirement</th>
-                        <th>Description</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (field of doc.requestBody; track field.name) {
+              <div class="request-content">
+                @if (doc.parameters.length > 0) {
+                  <div class="table-shell">
+                    <table>
+                      <thead>
                         <tr>
-                          <td class="mono accent">{{ field.name }}</td>
-                          <td><span class="chip">{{ field.type }}</span></td>
-                          <td>
-                            <span class="req" [class.req--required]="field.requirement === 'Required'">
-                              {{ field.requirement }}
-                            </span>
-                          </td>
-                          <td>{{ field.description }}</td>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th>Requirement</th>
+                          <th>Description</th>
                         </tr>
-                      }
-                    </tbody>
-                  </table>
-                </div>
-              } @else {
-                <p class="empty-state">No se requiere request body para este endpoint.</p>
-              }
+                      </thead>
+                      <tbody>
+                        @for (parameter of doc.parameters; track parameter.name) {
+                          <tr>
+                            <td class="mono accent">{{ parameter.name }}</td>
+                            <td><span class="chip">{{ parameter.type }}</span></td>
+                            <td>
+                              <span class="req" [class.req--required]="parameter.requirement === 'Required'">
+                                {{ parameter.requirement }}
+                              </span>
+                            </td>
+                            <td>{{ parameter.description }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+
+                @if (doc.headers.length > 0) {
+                  <div class="table-shell">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Value</th>
+                          <th>Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (header of doc.headers; track header.name) {
+                          <tr>
+                            <td class="mono accent">{{ header.name }}</td>
+                            <td class="mono">{{ header.value }}</td>
+                            <td>{{ header.description }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+
+                @if (doc.requestBody.length > 0) {
+                  <div class="table-shell">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Type</th>
+                          <th>Requirement</th>
+                          <th>Description</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        @for (field of doc.requestBody; track field.name) {
+                          <tr>
+                            <td class="mono accent">{{ field.name }}</td>
+                            <td><span class="chip">{{ field.type }}</span></td>
+                            <td>
+                              <span class="req" [class.req--required]="field.requirement === 'Required'">
+                                {{ field.requirement }}
+                              </span>
+                            </td>
+                            <td>{{ field.description }}</td>
+                          </tr>
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                }
+
+                @if (doc.parameters.length === 0 && doc.headers.length === 0 && doc.requestBody.length === 0) {
+                  <p class="empty-state">No hay parámetros, headers ni body para este endpoint.</p>
+                }
+              </div>
             </section>
 
             <section class="api-console" aria-label="API console">
@@ -586,22 +598,40 @@
               </div>
             </section>
 
-            <section class="section" id="responses">
-              <h2 class="section-heading section-heading--responses">
-                <span class="material-symbols-outlined section-heading__icon">task_alt</span>
-                <span>Responses</span>
-              </h2>
-              <div class="response-grid">
-                @for (response of doc.responses; track response.status) {
-                  <article class="response-card">
-                    <div class="response-card__head">
-                      <span class="status status--ok">{{ response.status }}</span>
-                      <span>{{ response.label }}</span>
-                    </div>
-                    <pre><code>{{ response.body }}</code></pre>
-                  </article>
-                }
+            <section class="responses-section" id="responses">
+              <div class="responses-header">
+                <h2 class="section-heading">
+                  <span class="material-symbols-outlined section-heading__icon">task_alt</span>
+                  <span>Responses</span>
+                </h2>
               </div>
+
+              @if (doc.responses.length > 0) {
+                <div class="responses-tabs">
+                  @for (response of doc.responses; track response.status; let first = $first) {
+                    <button class="responses-tab" [class.is-active]="first">
+                      <span class="responses-tab__status">{{ response.status }}</span>
+                      <span class="responses-tab__label">{{ response.label }}</span>
+                    </button>
+                  }
+                </div>
+
+                <div class="responses-content">
+                  <div class="responses-content__badge">
+                    <span class="content-type">APPLICATION/JSON</span>
+                  </div>
+
+                  <div class="responses-content__body">
+                    @for (response of doc.responses; track response.status; let first = $first) {
+                      @if (first) {
+                        <div class="response-item is-active">
+                          <pre><code>{{ response.body }}</code></pre>
+                        </div>
+                      }
+                    }
+                  </div>
+                </div>
+              }
             </section>
 
             <section class="section" id="errors">

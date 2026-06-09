@@ -1687,6 +1687,119 @@
   line-height: 1.08;
   letter-spacing: -0.05em;
   font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* Request/Responses Sections */
+.request-section, .responses-section {
+  margin-top: 2.1rem;
+}
+
+.request-header h2, .responses-header h2 {
+  margin: 0 0 1.2rem;
+  padding-bottom: 0.8rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.request-tabs, .responses-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  overflow-x: auto;
+}
+
+.request-tab, .responses-tab {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.8rem 1.2rem;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 150ms ease;
+  white-space: nowrap;
+
+  &:hover {
+    color: var(--text-primary);
+    background: var(--bg-tertiary);
+  }
+
+  &.is-active {
+    color: var(--accent-primary);
+    border-bottom-color: var(--accent-primary);
+  }
+}
+
+.request-tab__badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.35rem;
+  border-radius: 3px;
+  background: var(--accent-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.request-content, .responses-content {
+  margin-top: 1rem;
+}
+
+.content-type {
+  display: inline-block;
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
+  color: var(--accent-green);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.responses-tab__status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.5rem;
+  height: 1.8rem;
+  padding: 0 0.4rem;
+  border-radius: 4px;
+  background: #4CAF50;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.responses-tab__label {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.response-item {
+  display: none;
+
+  &.is-active {
+    display: block;
+  }
+
+  pre {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+    padding: 1rem;
+    border-radius: 6px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    line-height: 1.5;
+  }
 }
 
 .section-heading span:last-child {
