@@ -62,6 +62,7 @@ export class App {
   protected readonly searchQuery = signal('');
   protected readonly globalSearchQuery = signal('');
   protected readonly documentSearchQuery = signal('');
+  protected readonly theme = signal<'light' | 'dark'>('light');
   protected readonly selectedVersion = signal<ApiVersion>('v2');
   protected readonly isAuthenticated = signal(false);
   protected readonly authToken = signal('');
@@ -90,6 +91,7 @@ export class App {
   protected readonly adminSchemaEditorOpen = signal(false);
   protected readonly adminNotice = signal<string | null>(null);
   protected readonly adminLoading = signal(false);
+  protected readonly backendError = signal(false);
   protected readonly adminDraftEndpoints = signal<AdminEndpointDraft[]>([]);
   protected readonly adminSelectedSchemaId = signal<string>('');
   protected readonly adminSelectedEndpointId = signal<string>('');
@@ -250,6 +252,21 @@ export class App {
     }
 
     return this.docSections(doc);
+  });
+
+  protected readonly breadcrumbItems = computed(() => {
+    const doc = this.activeDoc();
+    if (!doc) {
+      return [] as Array<{ label: string; href?: string }>;
+    }
+
+    const service = this.services().find((s) => s.id === doc.serviceId);
+
+    return [
+      { label: 'API Specification', href: '#' },
+      ...(service ? [{ label: service.title }] : []),
+      { label: doc.title }
+    ];
   });
 
   protected readonly copyLabel = computed(() => this.copyState());
@@ -463,6 +480,13 @@ export class App {
       void this.loadAdminWorkspace();
     }
 
+    // Load theme preference
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      this.theme.set(savedTheme);
+      document.documentElement.setAttribute('data-theme', savedTheme);
+    }
+
     effect(() => {
       const visibleIds = this.visibleServices().flatMap((service) =>
         service.endpoints.map((endpoint) => endpoint.id),
@@ -645,6 +669,13 @@ export class App {
 
   protected setDocumentSearchQuery(value: string): void {
     this.documentSearchQuery.set(value);
+  }
+
+  protected toggleTheme(): void {
+    const newTheme = this.theme() === 'light' ? 'dark' : 'light';
+    this.theme.set(newTheme);
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
   }
 
   protected toggleService(serviceId: string): void {
@@ -1808,7 +1839,7 @@ export class App {
     return haystack.includes(query);
   }
 
-  private async refreshCatalog(): Promise<void> {
+  protected async refreshCatalog(): Promise<void> {
     try {
       const response = await this.requestJson<ApiResponse<DocumentedSchema[]>>('/schemas');
       const schemas = response.data ?? [];

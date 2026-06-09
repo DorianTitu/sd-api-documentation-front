@@ -18,6 +18,14 @@
         </div>
       </div>
     } @else {
+      <button type="button" class="topbar__theme-btn" (click)="toggleTheme()" [attr.data-theme]="theme()" aria-label="Toggle theme">
+        @if (theme() === 'light') {
+          <span class="material-symbols-outlined">dark_mode</span>
+        } @else {
+          <span class="material-symbols-outlined">light_mode</span>
+        }
+      </button>
+
       @if (!isAuthenticated()) {
         <button type="button" class="topbar__login-btn" (click)="openLoginModal()">
           <span class="material-symbols-outlined">login</span>
@@ -374,9 +382,11 @@
             </section>
           }
         } @else {
-          <div class="empty-state">
-            <strong>No hay esquemas disponibles.</strong>
-            <p>{{ serviceNotice() }}</p>
+          <div class="sidebar__empty">
+            <div class="sidebar__empty-icon">
+              <span class="material-symbols-outlined">cloud_off</span>
+            </div>
+            <p class="sidebar__empty-text">Fuera de Servicio</p>
           </div>
         }
       </nav>
@@ -386,6 +396,23 @@
       <div class="content__inner content__inner--doc">
         @if (activeDoc(); as doc) {
           <article class="doc-body">
+            <nav class="breadcrumb" aria-label="Breadcrumb">
+              <a href="#" class="breadcrumb__home" title="API Specification">
+                <span class="material-symbols-outlined">home</span>
+              </a>
+              @for (item of breadcrumbItems(); track item.label; let last = $last; let first = $first) {
+                @if (!first) {
+                  @if (!last) {
+                    <span class="breadcrumb__separator">/</span>
+                    <a href="{{ item.href || '#' }}" class="breadcrumb__link">{{ item.label }}</a>
+                  } @else {
+                    <span class="breadcrumb__separator">/</span>
+                    <span class="breadcrumb__current">{{ item.label }}</span>
+                  }
+                }
+              }
+            </nav>
+
             <section class="hero" id="overview">
               <h1>{{ doc.title }}</h1>
               <p>{{ doc.summary }}</p>
@@ -623,14 +650,19 @@
             </div>
           </aside>
         } @else {
-          <div class="content-empty">
-            <div class="content-empty__card">
-              <p class="content-empty__eyebrow">Portal de APIs</p>
-              <h1>{{ serviceNotice() }}</h1>
-              <p>
-                El portal siempre queda accesible. Si no has iniciado sesión, solo verás los
-                documentos públicos. Inicia sesión para desbloquear los esquemas privados.
+          <div class="service-status">
+            <div class="service-status__container">
+              <div class="service-status__icon">
+                <span class="material-symbols-outlined">cloud_off</span>
+              </div>
+              <h2 class="service-status__title">Fuera de Servicio</h2>
+              <p class="service-status__message">
+                El servicio no está disponible en este momento. Por favor, intenta más tarde.
               </p>
+              <button type="button" class="service-status__retry" (click)="refreshCatalog()">
+                <span class="material-symbols-outlined">refresh</span>
+                Reintentar
+              </button>
             </div>
           </div>
         }
