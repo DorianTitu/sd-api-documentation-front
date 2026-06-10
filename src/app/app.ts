@@ -457,7 +457,7 @@ export class App {
     createUser: (email: string, name: string, password: string, type: string) =>
       this.createAdminUser(email, name, password, type),
     deleteUser: (userId: number, userName: string) =>
-      this.deleteAdminUser(userId, userName),
+      Promise.reject(new Error('La eliminación de usuarios no está disponible')),
     formatDate: (value?: string) => this.formatAdminDate(value),
   }));
 
@@ -579,7 +579,6 @@ export class App {
     }
 
     if (view === 'usuarios' && this.adminUsers().length === 0) {
-      void this.loadAdminUsers();
     }
   }
 
@@ -796,7 +795,7 @@ export class App {
 
     try {
       console.log('🚀 Calling authSvc.registerUser()...');
-      await this.authSvc.registerUser(email, password, name, type);
+      await this.userManagementSvc.createUser({email, name, password});
       console.log('✅ User registered successfully');
       this.adminNotice.set(`Usuario ${name} registrado correctamente`);
       this.closeUserRegistrationModal();
@@ -2187,14 +2186,12 @@ export class App {
 
       const userType = type === 'ADMINISTRADOR' || type === 'DESARROLLADOR' ? type : 'DESARROLLADOR';
       await this.userManagementSvc.createUser({
-        correo: email,
-        nombre: name,
-        clave: password,
-        tipoUsuario: userType as 'ADMINISTRADOR' | 'DESARROLLADOR',
+        email,
+        name,
+        password,
       });
 
       this.adminNotice.set('Usuario creado correctamente');
-      await this.loadAdminUsers();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Error al crear usuario';
       console.error('Error creating user:', error);
@@ -2205,42 +2202,7 @@ export class App {
     }
   }
 
-  protected async deleteAdminUser(userId: number, userName: string): Promise<void> {
-    this.adminUsersLoading.set(true);
-    this.adminUsersError.set(null);
 
-    try {
-      if (!userId) {
-        throw new Error('User ID is required');
-      }
-
-      await this.userManagementSvc.deleteUser(userId);
-
-      this.adminNotice.set(`Usuario ${userName} eliminado correctamente`);
-      await this.loadAdminUsers();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al eliminar usuario';
-      console.error('Error deleting user:', error);
-      this.adminUsersError.set(message);
-      this.adminNotice.set(message);
-    } finally {
-      this.adminUsersLoading.set(false);
-    }
-  }
-
-  private async loadAdminUsers(): Promise<void> {
-    this.adminUsersLoading.set(true);
-    try {
-      const users = await this.userManagementSvc.getAllUsers();
-      this.adminUsers.set(users);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Error al cargar usuarios';
-      console.error('Error loading users:', error);
-      this.adminUsersError.set(message);
-    } finally {
-      this.adminUsersLoading.set(false);
-    }
-  }
 
   private endpointLabelFromPath(path: string, method: string, operationId?: string | null): string {
     const cleanOperationId = operationId?.trim();

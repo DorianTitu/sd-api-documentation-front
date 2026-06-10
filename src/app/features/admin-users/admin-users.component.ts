@@ -28,7 +28,7 @@ export class AdminUsersComponent {
 
   // Delete confirmation
   protected showDeleteConfirm = false;
-  protected userToDelete: { id: number; name: string } | null = null;
+  protected userToDelete: { id: number | string; name: string } | null = null;
 
   // Create user form
   protected showCreateForm = false;
@@ -45,8 +45,8 @@ export class AdminUsersComponent {
       const query = this.searchQuery.toLowerCase();
       result = result.filter(
         (user) =>
-          user.correo.toLowerCase().includes(query) ||
-          user.nombre.toLowerCase().includes(query)
+          user.email.toLowerCase().includes(query) ||
+          user.name.toLowerCase().includes(query)
       );
     }
 
@@ -58,14 +58,14 @@ export class AdminUsersComponent {
     return result;
   }
 
-  protected async handleDeleteUser(userId: number, userName: string): Promise<void> {
+  protected async handleDeleteUser(userId: number | string, userName: string): Promise<void> {
     this.userToDelete = { id: userId, name: userName };
     this.showDeleteConfirm = true;
   }
 
   protected async confirmDelete(): Promise<void> {
     if (this.userToDelete) {
-      await this.vm.deleteUser(this.userToDelete.id, this.userToDelete.name);
+      await this.vm.deleteUser(this.userToDelete.id as number, this.userToDelete.name);
       this.showDeleteConfirm = false;
       this.userToDelete = null;
     }

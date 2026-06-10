@@ -1,19 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
-import { type ApiResponse, type AuthUser } from '../../shared/models/portal.models';
+import { type AuthUser } from '../../shared/models/portal.models';
 
 export interface CreateUserRequest {
-  correo: string;
-  nombre: string;
-  clave: string;
-  tipoUsuario: 'ADMINISTRADOR' | 'DESARROLLADOR';
+  email: string;
+  name: string;
+  password: string;
 }
 
 export interface UserResponse {
-  id?: number;
-  correo: string;
-  nombre: string;
-  tipoUsuario: 'ADMINISTRADOR' | 'DESARROLLADOR';
+  id?: string | number;
+  email: string;
+  name: string;
+  tipoUsuario?: 'ADMINISTRADOR' | 'DESARROLLADOR';
   createdAt?: string;
   updatedAt?: string;
 }
@@ -23,31 +22,25 @@ export class UserManagementService {
   private readonly api = inject(ApiService);
 
   /**
-   * Get all users
-   */
-  async getAllUsers(): Promise<UserResponse[]> {
-    const response = await this.api.get<ApiResponse<UserResponse[]>>('/admin/usuarios');
-    return response.data ?? [];
-  }
-
-  /**
-   * Create a new user
+   * Create a new user via registration endpoint
    */
   async createUser(request: CreateUserRequest): Promise<UserResponse> {
-    const response = await this.api.post<ApiResponse<UserResponse>>('/auth/registro', request);
+    const response = await this.api.post<any>('/auth/register', request);
 
     if (!response.data) {
       throw new Error(response.message ?? 'Failed to create user');
     }
 
-    return response.data;
-  }
-
-  /**
-   * Delete a user
-   */
-  async deleteUser(userId: number): Promise<void> {
-    await this.api.delete<ApiResponse<void>>(`/admin/usuarios/${userId}`);
+    // Map backend response to our UserResponse format
+    const data = response.data;
+    return {
+      id: data.id,
+      email: data.email,
+      name: data.name,
+      tipoUsuario: data.tipoUsuario || 'DESARROLLADOR',
+      createdAt: data.createdAt,
+      updatedAt: data.updatedAt,
+    };
   }
 
   /**
@@ -61,8 +54,8 @@ export class UserManagementService {
     const lowerQuery = query.toLowerCase();
     return users.filter(
       (user) =>
-        user.correo.toLowerCase().includes(lowerQuery) ||
-        user.nombre.toLowerCase().includes(lowerQuery)
+        user.email.toLowerCase().includes(lowerQuery) ||
+        user.name.toLowerCase().includes(lowerQuery)
     );
   }
 

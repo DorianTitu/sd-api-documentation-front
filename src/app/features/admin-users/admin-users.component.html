@@ -52,11 +52,11 @@
             <tr class="admin-users__row">
               <td class="admin-users__cell">
                 <div class="admin-users__user-info">
-                  <div class="admin-users__avatar">{{ (user.nombre[0] || 'U').toUpperCase() }}</div>
-                  <span>{{ user.nombre }}</span>
+                  <div class="admin-users__avatar">{{ (user.name[0] || 'U').toUpperCase() }}</div>
+                  <span>{{ user.name }}</span>
                 </div>
               </td>
-              <td class="admin-users__cell">{{ user.correo }}</td>
+              <td class="admin-users__cell">{{ user.email }}</td>
               <td class="admin-users__cell">
                 <span class="admin-users__badge" [class.admin-users__badge--admin]="user.tipoUsuario === 'ADMINISTRADOR'">
                   {{ user.tipoUsuario === 'ADMINISTRADOR' ? '👤 Admin' : '👨‍💻 Dev' }}
@@ -67,7 +67,7 @@
                 <button
                   type="button"
                   class="admin-users__delete-btn"
-                  (click)="handleDeleteUser(user.id!, user.nombre)"
+                  (click)="handleDeleteUser(user.id!, user.name)"
                   [disabled]="vm.loading"
                   title="Eliminar usuario"
                 >

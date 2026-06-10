@@ -7,51 +7,63 @@ import { STORAGE_TOKEN_KEY, STORAGE_TOKEN_TYPE_KEY, STORAGE_USER_KEY } from '../
 export class AuthService {
   private readonly api = inject(ApiService);
 
-  async login(correo: string, clave: string): Promise<{ token: string; tokenType: string; user: AuthUser }> {
-    const response = await this.api.post<ApiResponse<LoginData>>('/auth/login', { correo, clave });
+  /**
+   * Login with email and password
+   */
+  async login(email: string, password: string): Promise<{ token: string; tokenType: string; user: AuthUser }> {
+    const response = await this.api.post<any>('/auth/login', { email, password });
 
-    if (!response.success || !response.data) {
+    if (!response.data) {
       throw new Error(response.message ?? 'Authentication failed');
     }
 
-    const { accessToken, tokenType, usuario } = response.data;
-    this.persistSession(accessToken, tokenType, usuario);
+    // The backend returns the user data directly
+    const userData = response.data;
+    
+    // Store the session (if token is provided, use it; otherwise derive from response)
+    this.persistSession(userData);
 
-    return { token: accessToken, tokenType, user: usuario };
-  }
-
-  logout(): void {
-    this.clearSession();
-  }
-
-  async registerUser(correo: string, clave: string, nombre: string, tipoUsuario: 'ADMINISTRADOR' | 'DESARROLLADOR'): Promise<AuthUser> {
-    try {
-      const response = await this.api.post<any>('/auth/registro', {
-        correo,
-        clave,
-        nombre,
-        tipoUsuario
-      });
-
-      console.log('Registration response:', response);
-
-      // Handle different response formats
-      const userData = response.data?.usuario || response.data?.user || response.data;
-
-      if (!userData) {
-        throw new Error(response.message ?? 'Failed to register user - no user data in response');
+    return { 
+      token: userData.token || '', 
+      tokenType: 'Bearer', 
+      user: {
+        id: userData.id,
+        correo: userData.email,
+        nombre: userData.name,
+        tipoUsuario: userData.tipoUsuario || 'DESARROLLADOR'
       }
+    };
+  }
 
-      return userData as AuthUser;
+  /**
+   * Logout the user
+   */
+  async logout(): Promise<void> {
+    try {
+      await this.api.post<any>('/auth/logout', {});
     } catch (error) {
-      console.error('Registration error:', error);
-      throw error;
+      console.error('Logout error:', error);
+    } finally {
+      this.clearSession();
     }
   }
 
-  private persistSession(token: string, tokenType: string, user: AuthUser): void {
-    localStorage.setItem(STORAGE_TOKEN_KEY, token);
-    localStorage.setItem(STORAGE_TOKEN_TYPE_KEY, tokenType || 'Bearer');
+  private persistSession(userData: any): void {
+    // Store token if available
+    if (userData.token) {
+      localStorage.setItem(STORAGE_TOKEN_KEY, userData.token);
+    }
+    
+    localStorage.setItem(STORAGE_TOKEN_TYPE_KEY, 'Bearer');
+    
+    // Store user info
+    const user: AuthUser = {
+      id: userData.id,
+      correo: userData.email,
+      nombre: userData.name,
+      tipoUsuario: userData.tipoUsuario || 'DESARROLLADOR'
+    };
+    
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
   }
 
