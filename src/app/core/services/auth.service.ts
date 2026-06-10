@@ -24,6 +24,31 @@ export class AuthService {
     this.clearSession();
   }
 
+  async registerUser(correo: string, clave: string, nombre: string, tipoUsuario: 'ADMINISTRADOR' | 'DESARROLLADOR'): Promise<AuthUser> {
+    try {
+      const response = await this.api.post<any>('/auth/registro', {
+        correo,
+        clave,
+        nombre,
+        tipoUsuario
+      });
+
+      console.log('Registration response:', response);
+
+      // Handle different response formats
+      const userData = response.data?.usuario || response.data?.user || response.data;
+
+      if (!userData) {
+        throw new Error(response.message ?? 'Failed to register user - no user data in response');
+      }
+
+      return userData as AuthUser;
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw error;
+    }
+  }
+
   private persistSession(token: string, tokenType: string, user: AuthUser): void {
     localStorage.setItem(STORAGE_TOKEN_KEY, token);
     localStorage.setItem(STORAGE_TOKEN_TYPE_KEY, tokenType || 'Bearer');

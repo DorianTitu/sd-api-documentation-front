@@ -1,0 +1,109 @@
+<section class="admin-users">
+  <div class="section__head">
+    <h1>Gestor de Usuarios</h1>
+    <p class="section__subtitle">Crea y administra cuentas de usuarios</p>
+  </div>
+
+  <!-- Controles -->
+  <div class="admin-users__controls">
+    <div class="admin-users__search">
+      <span class="material-symbols-outlined">search</span>
+      <input
+        type="text"
+        [(ngModel)]="searchQuery"
+        placeholder="Buscar por email o nombre..."
+        class="admin-users__search-input"
+      />
+    </div>
+
+    <div class="admin-users__filter">
+      <label>Filtrar por tipo:</label>
+      <select [(ngModel)]="filterType" class="admin-users__filter-select">
+        <option value="ALL">Todos</option>
+        <option value="ADMINISTRADOR">Administrador</option>
+        <option value="DESARROLLADOR">Desarrollador</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Tabla de usuarios -->
+  @if (filteredUsers.length > 0) {
+    <div class="admin-users__table-container">
+      <table class="admin-users__table">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Email</th>
+            <th>Tipo</th>
+            <th>Creado</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of filteredUsers; track user.id) {
+            <tr class="admin-users__row">
+              <td class="admin-users__cell">
+                <div class="admin-users__user-info">
+                  <div class="admin-users__avatar">{{ (user.nombre[0] || 'U').toUpperCase() }}</div>
+                  <span>{{ user.nombre }}</span>
+                </div>
+              </td>
+              <td class="admin-users__cell">{{ user.correo }}</td>
+              <td class="admin-users__cell">
+                <span class="admin-users__badge" [class.admin-users__badge--admin]="user.tipoUsuario === 'ADMINISTRADOR'">
+                  {{ user.tipoUsuario === 'ADMINISTRADOR' ? '👤 Admin' : '👨‍💻 Dev' }}
+                </span>
+              </td>
+              <td class="admin-users__cell">{{ vm.formatDate(user.createdAt) }}</td>
+              <td class="admin-users__cell admin-users__cell--actions">
+                <button
+                  type="button"
+                  class="admin-users__delete-btn"
+                  (click)="handleDeleteUser(user.id!, user.nombre)"
+                  [disabled]="vm.loading"
+                  title="Eliminar usuario"
+                >
+                  <span class="material-symbols-outlined">delete</span>
+                </button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="admin-users__empty">
+      <span class="material-symbols-outlined">person_off</span>
+      <h2>No hay usuarios</h2>
+      <p>{{ searchQuery || filterType !== 'ALL' ? 'No coinciden los filtros aplicados.' : 'Comienza creando un nuevo usuario.' }}</p>
+    </div>
+  }
+
+  <!-- Modal de confirmación para eliminar -->
+  @if (showDeleteConfirm && userToDelete) {
+    <section class="modal-backdrop" role="dialog" aria-modal="true" (click)="cancelDelete()">
+      <article class="delete-confirm-modal" (click)="$event.stopPropagation()">
+        <div class="delete-confirm-modal__icon">
+          <span class="material-symbols-outlined">warning</span>
+        </div>
+
+        <h2 class="delete-confirm-modal__title">Eliminar usuario</h2>
+
+        <p class="delete-confirm-modal__message">
+          ¿Estás seguro de que deseas eliminar a <strong>{{ userToDelete.name }}</strong>?
+        </p>
+
+        <p class="delete-confirm-modal__warning">Esta acción no se puede deshacer.</p>
+
+        <div class="delete-confirm-modal__actions">
+          <button type="button" class="login-button login-button--danger" (click)="confirmDelete()" [disabled]="vm.loading">
+            {{ vm.loading ? 'Eliminando...' : 'Eliminar' }}
+          </button>
+          <button type="button" class="login-button login-button--secondary" (click)="cancelDelete()" [disabled]="vm.loading">
+            Cancelar
+          </button>
+        </div>
+      </article>
+    </section>
+  }
+</section>

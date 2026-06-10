@@ -1,13 +1,21 @@
 import { Component, ElementRef, computed, effect, signal, viewChild, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 
 import { environment } from '../environments/environment';
-import { AuthService, SchemasService, EndpointsService, AccessesService } from './core/services';
+import {
+  AuthService,
+  SessionService,
+  SchemaFacadeService,
+  EndpointFacadeService,
+  UserManagementService,
+} from './core/services';
 import {
   type AdminAccessItem,
   type AdminEndpointItem,
   type AdminEndpointDraft,
   type AdminSchemaItem,
   type AdminView,
+  type PrivateSchemaWithAccesses,
   type ApiResponse,
   type ApiVersion,
   type AuthUser,
@@ -32,6 +40,8 @@ import {
 } from './core/constants/storage-keys';
 import { DashboardComponent, type DashboardVm } from './features/dashboard/dashboard.component';
 import { SchemasComponent, type SchemasVm } from './features/schemas/schemas.component';
+import { AccessesComponent, type AdminAccessesVm } from './features/accesses/accesses.component';
+import { AdminUsersComponent, type AdminUsersVm } from './features/admin-users/admin-users.component';
 import { AdminLayoutComponent } from './layouts/admin-layout/admin-layout.component';
 import { AuthLayoutComponent } from './layouts/auth-layout/auth-layout.component';
 import { PublicLayoutComponent } from './layouts/public-layout/public-layout.component';
@@ -40,20 +50,24 @@ import { PublicLayoutComponent } from './layouts/public-layout/public-layout.com
   selector: 'app-root',
   standalone: true,
   imports: [
+    FormsModule,
     AdminLayoutComponent,
     AuthLayoutComponent,
     PublicLayoutComponent,
     DashboardComponent,
     SchemasComponent,
+    AccessesComponent,
+    AdminUsersComponent,
   ],
   templateUrl: './app.html',
   styleUrl: './app.scss',
 })
 export class App {
   private readonly authSvc = inject(AuthService);
-  private readonly schemasSvc = inject(SchemasService);
-  private readonly endpointsSvc = inject(EndpointsService);
-  private readonly accessesSvc = inject(AccessesService);
+  private readonly sessionSvc = inject(SessionService);
+  private readonly schemaFacade = inject(SchemaFacadeService);
+  private readonly endpointFacade = inject(EndpointFacadeService);
+  private readonly userManagementSvc = inject(UserManagementService);
   protected readonly searchInput = viewChild<ElementRef<HTMLInputElement>>('searchInput');
   protected readonly contentScroll = viewChild<ElementRef<HTMLElement>>('contentScroll');
 
@@ -85,13 +99,28 @@ export class App {
   protected readonly adminSchemas = signal<AdminSchemaItem[]>([]);
   protected readonly adminEndpoints = signal<AdminEndpointItem[]>([]);
   protected readonly adminAccesses = signal<AdminAccessItem[]>([]);
+  protected readonly adminUsers = signal<any[]>([]);
+  protected readonly adminUsersLoading = signal(false);
+  protected readonly adminUsersError = signal<string | null>(null);
   protected readonly adminExtractPreview = signal<unknown | null>(null);
   protected readonly adminSchemaWizardOpen = signal(false);
   protected readonly adminSchemaWizardStep = signal<1 | 2 | 3>(1);
   protected readonly adminSchemaEditorOpen = signal(false);
   protected readonly adminNotice = signal<string | null>(null);
   protected readonly adminLoading = signal(false);
+  protected readonly adminAccessesLoading = signal(false);
+  protected readonly adminAccessesError = signal<string | null>(null);
+  protected readonly adminPrivateSchemas = signal<PrivateSchemaWithAccesses[]>([]);
+  protected readonly adminAccessesCacheTime = signal<number>(0); // Timestamp of last load
   protected readonly backendError = signal(false);
+  protected readonly adminMenuOpen = signal(false);
+  protected readonly userRegistrationModalOpen = signal(false);
+  protected newUserEmail = '';
+  protected newUserPassword = '';
+  protected newUserName = '';
+  protected newUserType: 'ADMINISTRADOR' | 'DESARROLLADOR' = 'DESARROLLADOR';
+  protected readonly userRegistrationLoading = signal(false);
+  protected readonly userRegistrationError = signal<string | null>(null);
   protected readonly adminDraftEndpoints = signal<AdminEndpointDraft[]>([]);
   protected readonly adminSelectedSchemaId = signal<string>('');
   protected readonly adminSelectedEndpointId = signal<string>('');
@@ -409,6 +438,29 @@ export class App {
     updateImportUrl: (value: string) => this.updateAdminImportUrl(value),
     loading: () => this.adminLoading(),
   }));
+
+  protected readonly adminAccessesVm = computed<AdminAccessesVm>(() => ({
+    schemas: this.adminPrivateSchemas(),
+    loading: this.adminAccessesLoading(),
+    error: this.adminAccessesError(),
+    grantAccess: (schemaId: string | number, developerUserId: string | number) =>
+      this.grantAccessToSchema(schemaId, developerUserId),
+    revokeAccess: (schemaId: string | number, developerUserId: string | number) =>
+      this.revokeAccessFromSchema(schemaId, developerUserId),
+    formatDate: (value?: string | Date) => this.formatAdminDate(value?.toString()),
+  }));
+
+  protected readonly adminUsersVm = computed<AdminUsersVm>(() => ({
+    users: this.adminUsers(),
+    loading: this.adminUsersLoading(),
+    error: this.adminUsersError(),
+    createUser: (email: string, name: string, password: string, type: string) =>
+      this.createAdminUser(email, name, password, type),
+    deleteUser: (userId: number, userName: string) =>
+      this.deleteAdminUser(userId, userName),
+    formatDate: (value?: string) => this.formatAdminDate(value),
+  }));
+
   protected readonly filteredAdminSchemas = computed(() => {
     const query = this.normalize(this.searchQuery());
     const visibilityFilter = this.adminSchemaVisibilityFilter();
@@ -484,8 +536,20 @@ export class App {
     const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
     if (savedTheme) {
       this.theme.set(savedTheme);
+      document.documentElement.classList.add(savedTheme);
       document.documentElement.setAttribute('data-theme', savedTheme);
+    } else {
+      // Default to light mode
+      document.documentElement.classList.add('light');
     }
+
+    // Sync theme changes to DOM
+    effect(() => {
+      const currentTheme = this.theme();
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(currentTheme);
+      document.documentElement.setAttribute('data-theme', currentTheme);
+    });
 
     effect(() => {
       const visibleIds = this.visibleServices().flatMap((service) =>
@@ -504,14 +568,18 @@ export class App {
   }
 
   protected setAdminView(view: AdminView): void {
-    if (view !== 'dashboard' && view !== 'schemas') {
-      return;
-    }
-
     this.adminView.set(view);
 
-    if (view === 'schemas' && this.adminSchemas().length === 0) {
+    if (view === 'esquemas' && this.adminSchemas().length === 0) {
       void this.loadAdminWorkspace();
+    }
+
+    if (view === 'permisos') {
+      void this.loadPrivateSchemas();
+    }
+
+    if (view === 'usuarios' && this.adminUsers().length === 0) {
+      void this.loadAdminUsers();
     }
   }
 
@@ -674,8 +742,70 @@ export class App {
   protected toggleTheme(): void {
     const newTheme = this.theme() === 'light' ? 'dark' : 'light';
     this.theme.set(newTheme);
+
+    // Remove old theme class and add new one
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(newTheme);
+
+    // Also set attribute for backup
     document.documentElement.setAttribute('data-theme', newTheme);
+
     localStorage.setItem('theme', newTheme);
+  }
+
+  protected toggleAdminMenu(): void {
+    this.adminMenuOpen.set(!this.adminMenuOpen());
+  }
+
+  protected closeAdminMenu(): void {
+    this.adminMenuOpen.set(false);
+  }
+
+  protected openUserRegistrationModal(): void {
+    this.userRegistrationModalOpen.set(true);
+    this.userRegistrationError.set(null);
+  }
+
+  protected closeUserRegistrationModal(): void {
+    this.userRegistrationModalOpen.set(false);
+    this.newUserEmail = '';
+    this.newUserPassword = '';
+    this.newUserName = '';
+    this.newUserType = 'DESARROLLADOR';
+    this.userRegistrationError.set(null);
+  }
+
+  protected async registerNewUser(): Promise<void> {
+    console.log('🔵 registerNewUser() called');
+
+    const email = this.newUserEmail;
+    const password = this.newUserPassword;
+    const name = this.newUserName;
+    const type = this.newUserType;
+
+    console.log('📋 Form data:', { email, password: '***', name, type });
+
+    if (!email || !password || !name) {
+      console.log('⚠️ Validation failed: missing required fields');
+      this.userRegistrationError.set('Todos los campos son requeridos');
+      return;
+    }
+
+    this.userRegistrationLoading.set(true);
+    this.userRegistrationError.set(null);
+
+    try {
+      console.log('🚀 Calling authSvc.registerUser()...');
+      await this.authSvc.registerUser(email, password, name, type);
+      console.log('✅ User registered successfully');
+      this.adminNotice.set(`Usuario ${name} registrado correctamente`);
+      this.closeUserRegistrationModal();
+    } catch (error) {
+      console.log('❌ Registration error:', error);
+      this.userRegistrationError.set(error instanceof Error ? error.message : 'Error al registrar usuario');
+    } finally {
+      this.userRegistrationLoading.set(false);
+    }
   }
 
   protected toggleService(serviceId: string): void {
@@ -924,7 +1054,7 @@ export class App {
   }
 
   protected startCreateSchema(): void {
-    this.adminView.set('schemas');
+    this.adminView.set('esquemas');
     this.adminSchemaFormMode = 'create';
     this.adminSchemaEditingId = null;
     this.resetAdminSchemaForm();
@@ -1944,6 +2074,171 @@ export class App {
       this.activeEndpointId.set('');
       this.openServiceIds.set([]);
       this.notice.set('Sistema fuera de servicio temporalmente.');
+    }
+  }
+
+  protected async loadPrivateSchemas(forceRefresh = false): Promise<void> {
+    // Skip if already loading or if cache is fresh (< 30 seconds old)
+    if (this.adminAccessesLoading()) {
+      return;
+    }
+
+    const now = Date.now();
+    const cacheAge = now - this.adminAccessesCacheTime();
+    const CACHE_DURATION = 30000; // 30 seconds
+
+    if (!forceRefresh && cacheAge < CACHE_DURATION && this.adminPrivateSchemas().length > 0) {
+      // Use cached data
+      return;
+    }
+
+    this.adminAccessesLoading.set(true);
+    this.adminAccessesError.set(null);
+
+    try {
+      const schemasWithAccesses = await this.schemaFacade.getPrivateSchemasWithAccess();
+      this.adminPrivateSchemas.set(schemasWithAccesses);
+      this.adminAccessesCacheTime.set(now);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al cargar esquemas privados';
+      console.error('Error loading private schemas:', error);
+      this.adminAccessesError.set(message);
+      this.adminPrivateSchemas.set([]);
+    } finally {
+      this.adminAccessesLoading.set(false);
+    }
+  }
+
+  private async updateSchemaAccessesList(schemaId: number): Promise<void> {
+    try {
+      const accesses = await this.schemaFacade.getSchemaAccesses(schemaId);
+      const currentSchemas = this.adminPrivateSchemas();
+      const updatedSchemas = currentSchemas.map((schema) =>
+        schema.id === schemaId ? { ...schema, accesses } : schema
+      ) as PrivateSchemaWithAccesses[];
+      this.adminPrivateSchemas.set(updatedSchemas);
+    } catch (error) {
+      console.error(`Error updating accesses for schema ${schemaId}:`, error);
+    }
+  }
+
+  protected async grantAccessToSchema(schemaId: string | number, developerUserId: string | number): Promise<void> {
+    this.adminAccessesLoading.set(true);
+    this.adminAccessesError.set(null);
+
+    try {
+      const schemaIdNum = Number(schemaId);
+      const developerIdNum = Number(developerUserId);
+
+      if (!schemaIdNum || !developerIdNum) {
+        throw new Error('Invalid schema ID or developer ID');
+      }
+
+      await this.schemaFacade.grantSchemaAccess(schemaIdNum, developerIdNum);
+
+      // Update only the affected schema instead of reloading all
+      await this.updateSchemaAccessesList(schemaIdNum);
+      this.adminNotice.set('Acceso otorgado correctamente');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al otorgar acceso';
+      console.error('Error granting access:', error);
+      this.adminAccessesError.set(message);
+      this.adminNotice.set(message);
+    } finally {
+      this.adminAccessesLoading.set(false);
+    }
+  }
+
+  protected async revokeAccessFromSchema(schemaId: string | number, developerUserId: string | number): Promise<void> {
+    this.adminAccessesLoading.set(true);
+    this.adminAccessesError.set(null);
+
+    try {
+      const schemaIdNum = Number(schemaId);
+      const developerIdNum = Number(developerUserId);
+
+      if (!schemaIdNum || !developerIdNum) {
+        throw new Error('Invalid schema ID or developer ID');
+      }
+
+      await this.schemaFacade.revokeSchemaAccess(schemaIdNum, developerIdNum);
+
+      // Update only the affected schema instead of reloading all
+      await this.updateSchemaAccessesList(schemaIdNum);
+      this.adminNotice.set('Acceso revocado correctamente');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al revocar acceso';
+      console.error('Error revoking access:', error);
+      this.adminAccessesError.set(message);
+      this.adminNotice.set(message);
+    } finally {
+      this.adminAccessesLoading.set(false);
+    }
+  }
+
+  protected async createAdminUser(email: string, name: string, password: string, type: string): Promise<void> {
+    this.adminUsersLoading.set(true);
+    this.adminUsersError.set(null);
+
+    try {
+      if (!email || !name || !password) {
+        throw new Error('Email, nombre y contraseña son requeridos');
+      }
+
+      const userType = type === 'ADMINISTRADOR' || type === 'DESARROLLADOR' ? type : 'DESARROLLADOR';
+      await this.userManagementSvc.createUser({
+        correo: email,
+        nombre: name,
+        clave: password,
+        tipoUsuario: userType as 'ADMINISTRADOR' | 'DESARROLLADOR',
+      });
+
+      this.adminNotice.set('Usuario creado correctamente');
+      await this.loadAdminUsers();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al crear usuario';
+      console.error('Error creating user:', error);
+      this.adminUsersError.set(message);
+      this.adminNotice.set(message);
+    } finally {
+      this.adminUsersLoading.set(false);
+    }
+  }
+
+  protected async deleteAdminUser(userId: number, userName: string): Promise<void> {
+    this.adminUsersLoading.set(true);
+    this.adminUsersError.set(null);
+
+    try {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
+
+      await this.userManagementSvc.deleteUser(userId);
+
+      this.adminNotice.set(`Usuario ${userName} eliminado correctamente`);
+      await this.loadAdminUsers();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al eliminar usuario';
+      console.error('Error deleting user:', error);
+      this.adminUsersError.set(message);
+      this.adminNotice.set(message);
+    } finally {
+      this.adminUsersLoading.set(false);
+    }
+  }
+
+  private async loadAdminUsers(): Promise<void> {
+    this.adminUsersLoading.set(true);
+    try {
+      const users = await this.userManagementSvc.getAllUsers();
+      this.adminUsers.set(users);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Error al cargar usuarios';
+      console.error('Error loading users:', error);
+      this.adminUsersError.set(message);
+    } finally {
+      this.adminUsersLoading.set(false);
     }
   }
 

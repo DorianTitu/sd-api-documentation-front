@@ -1,0 +1,112 @@
+<section class="admin-accesses">
+  <div class="section__head">
+    <h1>Gestión de Permisos</h1>
+    <p class="section__subtitle">Asigna acceso a esquemas/APIs privadas a desarrolladores</p>
+  </div>
+
+  @if (vm.error) {
+    <section class="notice-banner notice-banner--error" role="alert">
+      <span class="material-symbols-outlined">error</span>
+      <p>{{ vm.error }}</p>
+    </section>
+  }
+
+  @if (vm.loading) {
+    <div class="accesses-loading">
+      <div class="spinner"></div>
+      <p>Cargando esquemas...</p>
+    </div>
+  } @else if (vm.schemas.length === 0) {
+    <section class="empty-state">
+      <span class="material-symbols-outlined">lock_clock</span>
+      <h2>No hay esquemas privados</h2>
+      <p>Todos los esquemas están configurados como públicos o no hay esquemas registrados.</p>
+    </section>
+  } @else {
+    <div class="accesses-grid">
+      @for (schema of vm.schemas; track schema.id) {
+        <article class="access-card">
+          <div class="access-card__header">
+            <div class="access-card__title-group">
+              <div class="access-card__icon">
+                <span class="material-symbols-outlined">lock</span>
+              </div>
+              <div>
+                <h3>{{ schema.title }}</h3>
+                <p class="access-card__version">v{{ schema.version }}</p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              class="access-card__toggle"
+              (click)="toggleSchemaAccesses(schema.id)"
+              [class.is-expanded]="expandedSchemaId === schema.id"
+              [attr.aria-expanded]="expandedSchemaId === schema.id"
+              [attr.aria-label]="'Toggle accesses for ' + schema.title"
+            >
+              <span class="material-symbols-outlined">expand_more</span>
+            </button>
+          </div>
+
+          <div class="access-card__description">
+            <p>{{ schema.description || 'Sin descripción' }}</p>
+          </div>
+
+          @if (expandedSchemaId === schema.id) {
+            <div class="access-card__expanded">
+              <div class="access-card__section">
+                <h4>Usuarios con acceso</h4>
+
+                @if (schema.accesses && schema.accesses.length > 0) {
+                  <ul class="access-list">
+                    @for (access of schema.accesses; track access.developerUserId) {
+                      <li class="access-item">
+                        <div class="access-item__info">
+                          <span class="access-item__name">{{ access.developerName || access.nombre || 'Sin nombre' }}</span>
+                          <span class="access-item__email">{{ access.developerCorreo || access.correo || 'Sin correo' }}</span>
+                        </div>
+                        <button
+                          type="button"
+                          class="access-item__revoke"
+                          (click)="handleRevokeAccess(schema.id, access.developerUserId)"
+                          [disabled]="vm.loading"
+                          title="Revocar acceso"
+                        >
+                          <span class="material-symbols-outlined">close</span>
+                        </button>
+                      </li>
+                    }
+                  </ul>
+                } @else {
+                  <p class="access-card__empty">Ningún desarrollador tiene acceso aún</p>
+                }
+              </div>
+
+              <div class="access-card__section access-card__section--grant">
+                <h4>Otorgar acceso</h4>
+                <div class="access-card__form">
+                  <input
+                    type="text"
+                    [(ngModel)]="selectedDeveloperUserId"
+                    placeholder="ID del desarrollador o correo"
+                    class="access-card__input"
+                  />
+                  <button
+                    type="button"
+                    class="login-button login-button--small"
+                    (click)="handleGrantAccess(schema.id)"
+                    [disabled]="vm.loading || !selectedDeveloperUserId.trim()"
+                  >
+                    <span class="material-symbols-outlined">add</span>
+                    Otorgar acceso
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </article>
+      }
+    </div>
+  }
+</section>

@@ -153,7 +153,7 @@ export interface ServiceGroup {
   endpoints: ServiceEndpointRef[];
 }
 
-export type AdminView = 'dashboard' | 'schemas' | 'endpoints' | 'accesses' | 'import';
+export type AdminView = 'dashboard' | 'permisos' | 'usuarios' | 'esquemas';
 
 export interface AdminSchemaItem {
   id: number;
@@ -195,6 +195,10 @@ export interface AdminAccessItem {
   nombre?: string;
   assignedAt?: string;
   grantedAt?: string;
+}
+
+export interface PrivateSchemaWithAccesses extends AdminSchemaItem {
+  accesses?: AdminAccessItem[];
 }
 
 export interface AdminEndpointDraft {

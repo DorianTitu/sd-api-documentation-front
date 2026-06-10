@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { environment } from '../../../environments/environment';
+import { STORAGE_TOKEN_KEY } from '../constants/storage-keys';
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
@@ -12,7 +13,7 @@ export class ApiService {
       'Accept': 'application/json',
     };
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem(STORAGE_TOKEN_KEY);
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }

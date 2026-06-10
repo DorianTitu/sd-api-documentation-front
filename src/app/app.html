@@ -7,15 +7,22 @@
   <header class="topbar" [class.topbar--admin]="isAdmin()">
     @if (isAdmin()) {
       <div class="topbar__admin-meta">
-        <button type="button" class="topbar__admin-avatar" aria-label="Admin profile">
+        <button type="button" class="topbar__admin-avatar" aria-label="Admin profile" (click)="toggleAdminMenu()">
           <span>{{ userInitials() }}</span>
         </button>
 
-        <div class="topbar__admin-user">
-          <strong>{{ userName() }}</strong>
-          <span>{{ userRoleLabel() }}</span>
-          <button type="button" class="topbar__admin-signout" (click)="toggleSession()">Salir</button>
-        </div>
+        @if (adminMenuOpen()) {
+          <div class="admin-menu" (click)="closeAdminMenu()">
+            <button type="button" class="admin-menu__item" (click)="openUserRegistrationModal(); closeAdminMenu()">
+              <span class="material-symbols-outlined">person_add</span>
+              <span>Registrar usuario</span>
+            </button>
+            <button type="button" class="admin-menu__item" (click)="toggleSession(); closeAdminMenu()">
+              <span class="material-symbols-outlined">logout</span>
+              <span>Salir</span>
+            </button>
+          </div>
+        }
       </div>
     } @else {
       <button type="button" class="topbar__theme-btn" (click)="toggleTheme()" [attr.data-theme]="theme()" aria-label="Toggle theme">
@@ -48,27 +55,96 @@
 
   @if (isAdmin()) {
     <app-admin-layout>
-      <main class="content admin-content" #contentScroll>
-      <div class="content__inner content__inner--admin">
-        @if (adminNotice()) {
-          <section class="notice-banner" role="alert">
-            <span class="material-symbols-outlined">info</span>
-            <p>{{ adminNotice() }}</p>
-            <button type="button" class="notice-banner__close" (click)="clearAdminNotice()">Cerrar</button>
-          </section>
-        }
+      <div class="admin-layout">
+        <!-- Sidebar -->
+        <nav class="admin-sidebar">
+          <div class="admin-sidebar__header">
+            <span class="material-symbols-outlined">admin_panel_settings</span>
+            <span>Admin Panel</span>
+          </div>
 
-        @if (adminView() === 'schemas') {
-          <app-schemas [vm]="adminSchemasVm()" />
-        } @else if (adminView() === 'dashboard') {
-          <app-dashboard [vm]="adminDashboardVm()" />
-        } @else {
-          <section class="section">
-            <h2>Loading...</h2>
-          </section>
-        }
+          <ul class="admin-sidebar__menu">
+            <li>
+              <button
+                type="button"
+                class="admin-sidebar__item"
+                [class.is-active]="adminView() === 'dashboard'"
+                (click)="setAdminView('dashboard')"
+              >
+                <span class="material-symbols-outlined">dashboard</span>
+                <span>Dashboard</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="admin-sidebar__item"
+                [class.is-active]="adminView() === 'permisos'"
+                (click)="setAdminView('permisos')"
+              >
+                <span class="material-symbols-outlined">lock_open</span>
+                <span>Gestión de Permisos</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="admin-sidebar__item"
+                [class.is-active]="adminView() === 'usuarios'"
+                (click)="setAdminView('usuarios')"
+              >
+                <span class="material-symbols-outlined">group</span>
+                <span>Gestor de Usuarios</span>
+              </button>
+            </li>
+            <li>
+              <button
+                type="button"
+                class="admin-sidebar__item"
+                [class.is-active]="adminView() === 'esquemas'"
+                (click)="setAdminView('esquemas')"
+              >
+                <span class="material-symbols-outlined">settings</span>
+                <span>Esquemas</span>
+              </button>
+            </li>
+          </ul>
+
+          <div class="admin-sidebar__footer">
+            <button type="button" class="admin-sidebar__logout" (click)="toggleSession()">
+              <span class="material-symbols-outlined">logout</span>
+              <span>Salir</span>
+            </button>
+          </div>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="content admin-content" #contentScroll>
+          <div class="content__inner content__inner--admin">
+            @if (adminNotice()) {
+              <section class="notice-banner" role="alert">
+                <span class="material-symbols-outlined">info</span>
+                <p>{{ adminNotice() }}</p>
+                <button type="button" class="notice-banner__close" (click)="clearAdminNotice()">Cerrar</button>
+              </section>
+            }
+
+            @if (adminView() === 'dashboard') {
+              <app-dashboard [vm]="adminDashboardVm()" />
+            } @else if (adminView() === 'permisos') {
+              <app-accesses [vm]="adminAccessesVm()" />
+            } @else if (adminView() === 'usuarios') {
+              <app-admin-users [vm]="adminUsersVm()" />
+            } @else if (adminView() === 'esquemas') {
+              <app-schemas [vm]="adminSchemasVm()" />
+            } @else {
+              <section class="section">
+                <h2>Loading...</h2>
+              </section>
+            }
+          </div>
+        </main>
       </div>
-      </main>
     </app-admin-layout>
 
     @if (adminSchemaEditorOpen()) {
@@ -805,5 +881,79 @@
         </section>
       </div>
     </app-auth-layout>
+  }
+
+  @if (userRegistrationModalOpen()) {
+    <section class="modal-backdrop" role="dialog" aria-modal="true" (click)="closeUserRegistrationModal()">
+      <article class="registration-modal" (click)="$event.stopPropagation()">
+        <button type="button" class="registration-modal__close" (click)="closeUserRegistrationModal()">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+
+        <header class="registration-modal__header">
+          <h2>Registrar nuevo usuario</h2>
+          <p>Crea una nueva cuenta para administrador o desarrollador</p>
+        </header>
+
+        @if (userRegistrationError()) {
+          <div class="registration-modal__error">
+            <span class="material-symbols-outlined">error</span>
+            <p>{{ userRegistrationError() }}</p>
+          </div>
+        }
+
+        <form class="registration-modal__form" (ngSubmit)="registerNewUser()">
+          <label class="field">
+            <span>Correo electrónico</span>
+            <input
+              type="email"
+              [(ngModel)]="newUserEmail"
+              name="email"
+              placeholder="usuario@example.com"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>Nombre completo</span>
+            <input
+              type="text"
+              [(ngModel)]="newUserName"
+              name="name"
+              placeholder="Juan Pérez"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>Contraseña</span>
+            <input
+              type="password"
+              [(ngModel)]="newUserPassword"
+              name="password"
+              placeholder="••••••••"
+              required
+            />
+          </label>
+
+          <label class="field">
+            <span>Tipo de usuario</span>
+            <select [(ngModel)]="newUserType" name="tipoUsuario">
+              <option value="DESARROLLADOR">Desarrollador</option>
+              <option value="ADMINISTRADOR">Administrador</option>
+            </select>
+          </label>
+
+          <div class="registration-modal__actions">
+            <button type="submit" class="login-button" [disabled]="userRegistrationLoading()">
+              {{ userRegistrationLoading() ? 'Registrando...' : 'Registrar usuario' }}
+            </button>
+            <button type="button" class="login-button login-button--secondary" (click)="closeUserRegistrationModal()">
+              Cancelar
+            </button>
+          </div>
+        </form>
+      </article>
+    </section>
   }
 </div>
