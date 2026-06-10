@@ -22,10 +22,20 @@ export interface AdminUsersVm {
 export class AdminUsersComponent {
   @Input() vm!: AdminUsersVm;
 
+  // Search and filter
   protected searchQuery = '';
   protected filterType: 'ALL' | 'ADMINISTRADOR' | 'DESARROLLADOR' = 'ALL';
+
+  // Delete confirmation
   protected showDeleteConfirm = false;
   protected userToDelete: { id: number; name: string } | null = null;
+
+  // Create user form
+  protected showCreateForm = false;
+  protected newUserEmail = '';
+  protected newUserName = '';
+  protected newUserPassword = '';
+  protected newUserType: 'ADMINISTRADOR' | 'DESARROLLADOR' = 'DESARROLLADOR';
 
   protected get filteredUsers(): UserResponse[] {
     let result = this.vm.users;
@@ -64,5 +74,34 @@ export class AdminUsersComponent {
   protected cancelDelete(): void {
     this.showDeleteConfirm = false;
     this.userToDelete = null;
+  }
+
+  protected openCreateForm(): void {
+    this.showCreateForm = true;
+    this.resetCreateForm();
+  }
+
+  protected closeCreateForm(): void {
+    this.showCreateForm = false;
+    this.resetCreateForm();
+  }
+
+  protected resetCreateForm(): void {
+    this.newUserEmail = '';
+    this.newUserName = '';
+    this.newUserPassword = '';
+    this.newUserType = 'DESARROLLADOR';
+  }
+
+  protected async submitCreateUser(): Promise<void> {
+    if (!this.newUserEmail || !this.newUserName || !this.newUserPassword) {
+      return;
+    }
+
+    await this.vm.createUser(this.newUserEmail, this.newUserName, this.newUserPassword, this.newUserType);
+
+    if (!this.vm.error) {
+      this.closeCreateForm();
+    }
   }
 }

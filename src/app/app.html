@@ -13,10 +13,6 @@
 
         @if (adminMenuOpen()) {
           <div class="admin-menu" (click)="closeAdminMenu()">
-            <button type="button" class="admin-menu__item" (click)="openUserRegistrationModal(); closeAdminMenu()">
-              <span class="material-symbols-outlined">person_add</span>
-              <span>Registrar usuario</span>
-            </button>
             <button type="button" class="admin-menu__item" (click)="toggleSession(); closeAdminMenu()">
               <span class="material-symbols-outlined">logout</span>
               <span>Salir</span>

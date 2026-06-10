@@ -1,7 +1,15 @@
 <section class="admin-users">
   <div class="section__head">
-    <h1>Gestor de Usuarios</h1>
-    <p class="section__subtitle">Crea y administra cuentas de usuarios</p>
+    <div class="section__head-content">
+      <div>
+        <h1>Gestor de Usuarios</h1>
+        <p class="section__subtitle">Crea y administra cuentas de usuarios</p>
+      </div>
+      <button type="button" class="section__action-btn" (click)="openCreateForm()" [disabled]="vm.loading">
+        <span class="material-symbols-outlined">person_add</span>
+        <span>Nuevo Usuario</span>
+      </button>
+    </div>
   </div>
 
   <!-- Controles -->
@@ -103,6 +111,82 @@
             Cancelar
           </button>
         </div>
+      </article>
+    </section>
+  }
+
+  <!-- Modal de crear nuevo usuario -->
+  @if (showCreateForm) {
+    <section class="modal-backdrop" role="dialog" aria-modal="true" (click)="closeCreateForm()">
+      <article class="create-user-modal" (click)="$event.stopPropagation()">
+        <div class="create-user-modal__header">
+          <h2>Crear Nuevo Usuario</h2>
+          <button type="button" class="create-user-modal__close" (click)="closeCreateForm()">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        @if (vm.error) {
+          <div class="create-user-modal__error">
+            <span class="material-symbols-outlined">error</span>
+            <p>{{ vm.error }}</p>
+          </div>
+        }
+
+        <form class="create-user-modal__form" (ngSubmit)="submitCreateUser()">
+          <label class="field">
+            <span>Correo electrónico</span>
+            <input
+              type="email"
+              [(ngModel)]="newUserEmail"
+              name="email"
+              placeholder="usuario@example.com"
+              required
+              [disabled]="vm.loading"
+            />
+          </label>
+
+          <label class="field">
+            <span>Nombre completo</span>
+            <input
+              type="text"
+              [(ngModel)]="newUserName"
+              name="name"
+              placeholder="Juan Pérez"
+              required
+              [disabled]="vm.loading"
+            />
+          </label>
+
+          <label class="field">
+            <span>Contraseña</span>
+            <input
+              type="password"
+              [(ngModel)]="newUserPassword"
+              name="password"
+              placeholder="••••••••"
+              required
+              [disabled]="vm.loading"
+            />
+          </label>
+
+          <label class="field">
+            <span>Tipo de usuario</span>
+            <select [(ngModel)]="newUserType" name="type" [disabled]="vm.loading">
+              <option value="DESARROLLADOR">Desarrollador</option>
+              <option value="ADMINISTRADOR">Administrador</option>
+            </select>
+          </label>
+
+          <div class="create-user-modal__actions">
+            <button type="submit" class="login-button" [disabled]="vm.loading || !newUserEmail || !newUserName || !newUserPassword">
+              {{ vm.loading ? 'Creando...' : 'Crear Usuario' }}
+            </button>
+            <button type="button" class="login-button login-button--secondary" (click)="closeCreateForm()" [disabled]="vm.loading">
+              Cancelar
+            </button>
+          </div>
+        </form>
       </article>
     </section>
   }

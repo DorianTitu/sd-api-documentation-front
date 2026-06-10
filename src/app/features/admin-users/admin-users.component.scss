@@ -7,6 +7,13 @@
 .section__head {
   margin-bottom: 2rem;
 
+  .section__head-content {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 2rem;
+  }
+
   h1 {
     margin: 0 0 0.5rem;
     font-size: 2rem;
@@ -19,6 +26,37 @@
   margin: 0;
   font-size: 0.95rem;
   color: var(--color-text-secondary);
+}
+
+.section__action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--color-primary);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+
+  .material-symbols-outlined {
+    font-size: 1.2rem;
+  }
+
+  &:hover:not(:disabled) {
+    opacity: 0.9;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 }
 
 .admin-users__controls {
@@ -377,6 +415,126 @@
       background: var(--color-bg-primary);
     }
   }
+}
+
+// Modal de crear usuario
+.create-user-modal {
+  background: var(--color-bg-secondary);
+  border-radius: 0.75rem;
+  border: 1px solid var(--color-border);
+  padding: 2rem;
+  max-width: 450px;
+  animation: slideUp 0.3s ease;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.create-user-modal__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+}
+
+.create-user-modal__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  background: transparent;
+  border: none;
+  border-radius: 0.4rem;
+  cursor: pointer;
+  color: var(--color-text-secondary);
+  transition: all 0.2s ease;
+
+  .material-symbols-outlined {
+    font-size: 1.3rem;
+  }
+
+  &:hover {
+    background: var(--color-bg-primary);
+    color: var(--color-text-primary);
+  }
+}
+
+.create-user-modal__error {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid var(--color-error);
+  border-radius: 0.4rem;
+  margin-bottom: 1rem;
+  color: var(--color-error);
+
+  .material-symbols-outlined {
+    font-size: 1.2rem;
+    flex-shrink: 0;
+  }
+
+  p {
+    margin: 0;
+    font-size: 0.9rem;
+  }
+}
+
+.create-user-modal__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  span {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+  }
+
+  input,
+  select {
+    padding: 0.6rem 0.8rem;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.4rem;
+    font-size: 0.9rem;
+    color: var(--color-text-primary);
+    transition: all 0.2s ease;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    &::placeholder {
+      color: var(--color-text-secondary);
+    }
+
+    &:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+  }
+}
+
+.create-user-modal__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
 }
 
 // Dark mode support
