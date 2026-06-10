@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
-import { ApiResponse, LoginData, AuthUser } from '../../shared/models/portal.models';
+import { AuthUser } from '../../shared/models/portal.models';
 import { STORAGE_TOKEN_KEY, STORAGE_TOKEN_TYPE_KEY, STORAGE_USER_KEY } from '../constants/storage-keys';
 
 @Injectable({ providedIn: 'root' })
@@ -20,7 +20,7 @@ export class AuthService {
     // The backend returns the user data directly
     const userData = response.data;
     
-    // Store the session (if token is provided, use it; otherwise derive from response)
+    // Store the session
     this.persistSession(userData);
 
     return { 

@@ -637,11 +637,11 @@ export class App {
   }
 
   protected async submitLogin(): Promise<void> {
-    const correo = this.loginEmail().trim();
-    const clave = this.loginPassword();
+    const email = this.loginEmail().trim();
+    const password = this.loginPassword();
 
-    if (!correo || !clave) {
-      this.loginError.set('Ingresa tu correo y tu clave para continuar.');
+    if (!email || !password) {
+      this.loginError.set('Ingresa tu email y contraseña para continuar.');
       return;
     }
 
@@ -649,50 +649,20 @@ export class App {
     this.loginError.set(null);
 
     try {
-      const response = await fetch(`${this.apiBaseUrl}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ correo, clave }),
-      });
+      const { token, tokenType, user } = await this.authSvc.login(email, password);
 
-      const payload = (await response.json().catch(() => null)) as
-        | ApiResponse<LoginData>
-        | ErrorApiResponse
-        | null;
-
-      if (!response.ok || !payload || !('success' in payload) || !payload.success) {
-        const errorMessage =
-          payload && 'message' in payload && payload.message
-            ? payload.message
-            : 'No fue posible iniciar sesión.';
-        const details =
-          payload && 'details' in payload && Array.isArray(payload.details) && payload.details.length > 0
-            ? ` ${payload.details[0]}`
-            : '';
-        throw new Error(`${errorMessage}${details}`.trim());
-      }
-
-      const data = payload.data;
-      if (!data?.accessToken || !data.usuario) {
-        throw new Error('La respuesta de autenticación no contiene un token válido.');
-      }
-
-      this.persistSession(data.accessToken, data.tokenType, data.usuario);
-      this.currentUser.set(data.usuario);
-      this.currentRole.set(data.usuario.tipoUsuario);
-      this.authToken.set(data.accessToken);
+      this.persistSession(token, tokenType, user);
+      this.currentUser.set(user);
+      this.currentRole.set(user.tipoUsuario);
+      this.authToken.set(token);
       this.isAuthenticated.set(true);
       this.closeLoginModal();
       this.searchQuery.set('');
       this.notice.set(null);
 
-      if (data.usuario.tipoUsuario === 'ADMINISTRADOR') {
+      if (user.tipoUsuario === 'ADMINISTRADOR') {
         this.adminView.set('dashboard');
-        await this.loadAdminWorkspace();
-      } else if (data.usuario.tipoUsuario === 'DESARROLLADOR') {
+      } else if (user.tipoUsuario === 'DESARROLLADOR') {
         await this.refreshCatalog();
       }
     } catch (error) {
@@ -703,7 +673,6 @@ export class App {
       this.loginLoading.set(false);
     }
   }
-
   protected async toggleSession(): Promise<void> {
     this.notice.set(null);
     this.clearStoredSession();
