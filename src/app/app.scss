@@ -426,7 +426,11 @@
 }
 
 .page-shell--admin .content {
-  grid-column: 1 / -1;
+
+.page-shell--admin .content {
+  overflow-y: auto;
+  max-height: 100vh;
+}
 }
 
 .content__inner--admin {

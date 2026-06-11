@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { ApiService } from './api.service';
 import { AuthUser } from '../../shared/models/portal.models';
-import { STORAGE_TOKEN_KEY, STORAGE_TOKEN_TYPE_KEY, STORAGE_USER_KEY } from '../constants/storage-keys';
+import { STORAGE_USER_KEY } from '../constants/storage-keys';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -9,34 +9,39 @@ export class AuthService {
 
   /**
    * Login with email and password
+   * Backend responds with HTTP-only cookie, not JWT
    */
-  async login(email: string, password: string): Promise<{ token: string; tokenType: string; user: AuthUser }> {
-    const response = await this.api.post<any>('/auth/login', { email, password });
+  async login(email: string, password: string): Promise<AuthUser> {
+    // Step 1: Send login request (credentials: 'include' is handled by ApiService)
+    await this.api.post<any>('/auth/login', { email, password });
 
-    if (!response.data) {
-      throw new Error(response.message ?? 'Authentication failed');
-    }
-
-    // The backend returns the user data directly
-    const userData = response.data;
+    // Step 2: Fetch user info from /auth/me
+    const userData = await this.getAuthenticatedUser();
     
-    // Store the session
-    this.persistSession(userData);
+    // Step 3: Store user in state
+    this.persistUser(userData);
+    
+    return userData;
+  }
 
-    return { 
-      token: userData.token || '', 
-      tokenType: 'Bearer', 
-      user: {
-        id: userData.id,
-        correo: userData.email,
-        nombre: userData.name,
-        tipoUsuario: userData.tipoUsuario || 'DESARROLLADOR'
-      }
+  /**
+   * Get current authenticated user
+   * Used to verify session is active and get user details
+   */
+  async getAuthenticatedUser(): Promise<AuthUser> {
+    const response = await this.api.get<any>('/auth/me');
+    
+    return {
+      id: response.id,
+      correo: response.email,
+      nombre: response.name,
+      tipoUsuario: response.tipoUsuario || 'DESARROLLADOR'
     };
   }
 
   /**
    * Logout the user
+   * Clears the HTTP-only cookie on backend
    */
   async logout(): Promise<void> {
     try {
@@ -44,48 +49,51 @@ export class AuthService {
     } catch (error) {
       console.error('Logout error:', error);
     } finally {
-      this.clearSession();
+      this.clearUser();
     }
   }
 
-  private persistSession(userData: any): void {
-    // Store token if available
-    if (userData.token) {
-      localStorage.setItem(STORAGE_TOKEN_KEY, userData.token);
+  /**
+   * Check if user is authenticated
+   * Returns true if we can fetch /auth/me successfully
+   */
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      await this.getAuthenticatedUser();
+      return true;
+    } catch {
+      return false;
     }
-    
-    localStorage.setItem(STORAGE_TOKEN_TYPE_KEY, 'Bearer');
-    
-    // Store user info
-    const user: AuthUser = {
-      id: userData.id,
-      correo: userData.email,
-      nombre: userData.name,
-      tipoUsuario: userData.tipoUsuario || 'DESARROLLADOR'
-    };
-    
-    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
   }
 
-  private clearSession(): void {
-    localStorage.removeItem(STORAGE_TOKEN_KEY);
-    localStorage.removeItem(STORAGE_TOKEN_TYPE_KEY);
-    localStorage.removeItem(STORAGE_USER_KEY);
-  }
-
-  getStoredSession(): { token: string; user: AuthUser | null } | null {
-    const token = localStorage.getItem(STORAGE_TOKEN_KEY);
+  /**
+   * Get stored user from localStorage
+   * Used after app startup to restore session state
+   */
+  getStoredUser(): AuthUser | null {
     const userRaw = localStorage.getItem(STORAGE_USER_KEY);
-
-    if (!token || !userRaw) {
+    if (!userRaw) {
       return null;
     }
 
     try {
-      const user = JSON.parse(userRaw) as AuthUser | null;
-      return user ? { token, user } : null;
+      return JSON.parse(userRaw) as AuthUser;
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Persist user to localStorage
+   */
+  private persistUser(user: AuthUser): void {
+    localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
+  }
+
+  /**
+   * Clear user from localStorage
+   */
+  private clearUser(): void {
+    localStorage.removeItem(STORAGE_USER_KEY);
   }
 }

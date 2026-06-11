@@ -6,69 +6,115 @@ import { STORAGE_TOKEN_KEY } from '../constants/storage-keys';
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private readonly http = inject(HttpClient);
-  private readonly apiBaseUrl = environment.apiBaseUrl;
+  private readonly baseUrl = environment.apiBaseUrl;
 
-  private getAuthHeaders(): Record<string, string> {
-    const headers: Record<string, string> = {
-      'Accept': 'application/json',
-    };
-
-    const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    return headers;
-  }
-
-  async get<T>(path: string): Promise<T> {
-    return this.http
-      .get<T>(`${this.apiBaseUrl}${path}`, {
-        headers: this.getAuthHeaders(),
-      })
-      .toPromise()
-      .then(data => data!)
-      .catch(error => this.handleError(error));
-  }
-
-  async post<T>(path: string, body: unknown): Promise<T> {
-    return this.http
-      .post<T>(`${this.apiBaseUrl}${path}`, body, {
-        headers: this.getAuthHeaders(),
-      })
-      .toPromise()
-      .then(data => data!)
-      .catch(error => this.handleError(error));
-  }
-
-  async put<T>(path: string, body: unknown): Promise<T> {
-    return this.http
-      .put<T>(`${this.apiBaseUrl}${path}`, body, {
-        headers: this.getAuthHeaders(),
-      })
-      .toPromise()
-      .then(data => data!)
-      .catch(error => this.handleError(error));
-  }
-
-  async delete<T>(path: string): Promise<T> {
-    return this.http
-      .delete<T>(`${this.apiBaseUrl}${path}`, {
-        headers: this.getAuthHeaders(),
-      })
-      .toPromise()
-      .then(data => data!)
-      .catch(error => this.handleError(error));
-  }
-
-  private handleError(error: HttpErrorResponse): never {
-    let message = `Request failed with status ${error.status}`;
+  /**
+   * GET request with credentials
+   */
+  async get<T>(endpoint: string, options?: any): Promise<T> {
     try {
-      const body = error.error as { message?: string };
-      message = body.message ?? message;
-    } catch {
-      // Ignore invalid JSON errors.
+      const url = `${this.baseUrl}${endpoint}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Request failed';
+      throw new Error(message);
     }
-    throw new Error(message);
+  }
+
+  /**
+   * POST request with credentials
+   */
+  async post<T>(endpoint: string, body?: any, options?: any): Promise<T> {
+    try {
+      const url = `${this.baseUrl}${endpoint}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Request failed';
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * PUT request with credentials
+   */
+  async put<T>(endpoint: string, body?: any, options?: any): Promise<T> {
+    try {
+      const url = `${this.baseUrl}${endpoint}`;
+      const response = await fetch(url, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        body: body ? JSON.stringify(body) : undefined,
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Request failed';
+      throw new Error(message);
+    }
+  }
+
+  /**
+   * DELETE request with credentials
+   */
+  async delete<T>(endpoint: string, options?: any): Promise<T> {
+    try {
+      const url = `${this.baseUrl}${endpoint}`;
+      const response = await fetch(url, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...options?.headers,
+        },
+        ...options,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      return (await response.json()) as T;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Request failed';
+      throw new Error(message);
+    }
   }
 }

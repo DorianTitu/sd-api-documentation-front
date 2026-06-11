@@ -649,12 +649,12 @@ export class App {
     this.loginError.set(null);
 
     try {
-      const { token, tokenType, user } = await this.authSvc.login(email, password);
+      // Login returns user info; backend sets HTTP-only cookie
+      const user = await this.authSvc.login(email, password);
 
-      this.persistSession(token, tokenType, user);
+      // Update app state with user info
       this.currentUser.set(user);
       this.currentRole.set(user.tipoUsuario);
-      this.authToken.set(token);
       this.isAuthenticated.set(true);
       this.closeLoginModal();
       this.searchQuery.set('');
@@ -675,6 +675,15 @@ export class App {
   }
   protected async toggleSession(): Promise<void> {
     this.notice.set(null);
+    
+    try {
+      // Call logout endpoint to clear the HTTP-only cookie
+      await this.authSvc.logout();
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+    
+    // Clear local app state
     this.clearStoredSession();
     this.authToken.set('');
     this.currentUser.set(null);
@@ -694,7 +703,6 @@ export class App {
     this.closeLoginModal();
     await this.refreshCatalog();
   }
-
   protected setSearchQuery(value: string): void {
     this.searchQuery.set(value);
   }
@@ -1850,58 +1858,43 @@ export class App {
     return this.adminEndpoints().filter((endpoint) => endpoint.schemaId === schemaId).length;
   }
 
-  private restoreSession(): void {
+  private async restoreSession(): Promise<void> {
     try {
-      const token = localStorage.getItem(STORAGE_TOKEN_KEY);
-      const tokenType = localStorage.getItem(STORAGE_TOKEN_TYPE_KEY);
-      const userRaw = localStorage.getItem(STORAGE_USER_KEY);
-
-      if (!token || !userRaw) {
-        this.showLoginModal.set(false);
-        return;
-      }
-
-      const user = JSON.parse(userRaw) as AuthUser | null;
-      if (!user?.tipoUsuario) {
-        this.clearStoredSession();
-        this.showLoginModal.set(true);
-        return;
-      }
-
-      this.authToken.set(token);
+      // First, try to get user from GET /auth/me
+      // This verifies the session is still valid (cookie not expired)
+      const user = await this.authSvc.getAuthenticatedUser();
+      
+      // Session is valid, restore state
       this.currentUser.set(user);
       this.currentRole.set(user.tipoUsuario);
       this.isAuthenticated.set(true);
       this.showLoginModal.set(false);
       this.loginEmail.set(user.correo);
-      if (tokenType) {
-        void tokenType;
-      }
-
+      
+      // Load appropriate data based on role
       if (user.tipoUsuario === 'ADMINISTRADOR') {
         void this.loadAdminWorkspace();
       } else if (user.tipoUsuario === 'DESARROLLADOR') {
         void this.refreshCatalog();
       }
     } catch {
+      // Session is invalid or user is not authenticated
       this.clearStoredSession();
       this.clearCatalog();
       this.showLoginModal.set(false);
     }
   }
 
-  private persistSession(token: string, tokenType: string, user: AuthUser): void {
-    localStorage.setItem(STORAGE_TOKEN_KEY, token);
-    localStorage.setItem(STORAGE_TOKEN_TYPE_KEY, tokenType || 'Bearer');
+  private persistSession(_token: string, _tokenType: string, user: AuthUser): void {
+    // With HTTP-only cookies, we don't store the token
+    // We only store the user info for quick access before verifying with /auth/me
     localStorage.setItem(STORAGE_USER_KEY, JSON.stringify(user));
   }
 
   private clearStoredSession(): void {
-    localStorage.removeItem(STORAGE_TOKEN_KEY);
-    localStorage.removeItem(STORAGE_TOKEN_TYPE_KEY);
+    // Clear stored user (token is in HTTP-only cookie, cleared by backend)
     localStorage.removeItem(STORAGE_USER_KEY);
   }
-
   private clearCatalog(): void {
     this.schemas.set([]);
     this.services.set([]);
