@@ -2299,16 +2299,13 @@ export class App {
       Accept: 'application/json',
     };
 
-    if (this.authToken()) {
-      headers['Authorization'] = `Bearer ${this.authToken()}`;
-    }
-
     if (init?.body && !headers['Content-Type'] && !(init.headers as Record<string, string> | undefined)?.['Content-Type']) {
       headers['Content-Type'] = 'application/json';
     }
 
     const response = await fetch(`${this.apiBaseUrl}${path}`, {
       ...init,
+      credentials: 'include',
       headers: {
         ...headers,
         ...(init?.headers as Record<string, string> | undefined),
